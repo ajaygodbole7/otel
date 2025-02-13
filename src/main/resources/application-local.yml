@@ -1,0 +1,88 @@
+# OpenTelemetry Configuration
+otel:
+  service:
+    name: otel-demo
+  metrics:
+    exporter: otlp
+  traces:
+    sampler: always_on
+    exporter: otlp
+  logs:
+    exporter: otlp
+  exporter:
+    otlp:
+      endpoint: http://localhost:4318
+      protocol: http/protobuf
+  instrumentation:
+    jdbc:
+      enabled: true
+    spring-web:
+      enabled: true
+    spring-webmvc:
+      enabled: true
+    log4j-appender:
+      enabled: true
+    logback-appender:
+      enabled: true
+    micrometer:
+      enabled: true
+    kafka:
+      enabled: true
+      experimental-span-attributes: true
+      autoconfigure-interceptor: true
+    common:
+      default-enabled: false
+
+
+
+spring:
+  application:
+    name: otel-demo
+  main:
+    banner-mode: off
+  datasource:
+    url: jdbc:postgresql://localhost:5432/demodb
+    username: demouser
+    password: demopass
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  docker:
+    compose:
+      file: ./infra/docker-compose.yml
+  flyway:
+    clean-disabled: false
+
+logging:
+  level:
+    org.hibernate: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.orm.jdbc.bind: TRACE
+    io.opentelemetry: DEBUG
+    io.opentelemetry.instrumentation.spring.kafka: TRACE
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    enable:
+      all: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        step: 15s
+
+
+
+
+
