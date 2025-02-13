@@ -1,0 +1,170 @@
+services:
+  # --------------------------------------------------
+  # Postgres
+  # --------------------------------------------------
+  postgres:
+    image: postgres:16.2
+    container_name: postgres_demo
+    environment:
+      POSTGRES_DB: demodb
+      POSTGRES_USER: demouser
+      POSTGRES_PASSWORD: demopass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demouser -d demodb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------
+  # Kafka (KRaft mode)
+  # --------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: kafka_demo
+    # Single-broker, KRaft mode configuration
+    environment:
+      CLUSTER_ID: '2ZNwG2H2RiGTp0MWStfzKQ'
+      KAFKA_NODE_ID: 1
+      # KRaft roles
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      # Our single broker is both broker ID 1 and controller, on port 29093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:29093"
+
+
+      # We define three listeners:
+      # 1) INTERNAL_BROKER: used for inter-broker communication
+      # 2) CLIENT: for the host or other containers to produce/consume
+      # 3) CONTROLLER: for the KRaft controller
+      KAFKA_LISTENERS: INTERNAL_BROKER://0.0.0.0:29092,CLIENT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+
+      # We'll advertise:
+      #  - INTERNAL_BROKER to be kafka:29092 (so containers on this network can talk to it)
+      #  - CLIENT as localhost:9092 (so the host can talk to it)
+      #  - CONTROLLER for internal KRaft
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL_BROKER://kafka:29092,CLIENT://localhost:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL_BROKER:PLAINTEXT,CLIENT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL_BROKER"
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+      # Optional override for Kafka logs directory if you want
+      # KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+
+      # Single node => no cluster ID needed for ephemeral usage.
+      # If you need a stable cluster ID, set KAFKA_CLUSTER_ID
+    ports:
+      - "9092:9092"  # host -> Kafka client
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      - kafka_kraft_data:/var/lib/kafka/kraft
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # --------------------------------------------------
+  # OpenTelemetry Collector
+  # --------------------------------------------------
+  otel-collector:
+    container_name: otel_collector_demo
+    image: otel/opentelemetry-collector-contrib:latest
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./otel-collector.yml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus metrics
+      - "55679:55679" # zPages
+    depends_on:
+      - tempo
+      - loki
+
+  # --------------------------------------------------
+  # Prometheus
+  # --------------------------------------------------
+  prometheus:
+    container_name: prometheus_demo
+    image: prom/prometheus:latest
+    command: [--config.file=/etc/prometheus/prometheus.yml]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # --------------------------------------------------
+  # Tempo
+  # --------------------------------------------------
+  tempo:
+    container_name: tempo_demo
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+
+
+  # --------------------------------------------------
+  # Loki
+  # --------------------------------------------------
+  loki:
+    container_name: loki_demo
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+
+  # --------------------------------------------------
+  # Grafana
+  # --------------------------------------------------
+  grafana:
+    container_name: grafana_demo
+    image: grafana/grafana:11.4.0
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/etc/grafana/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
+volumes:
+  postgres_data:
+  kafka_data:
+  kafka_kraft_data:
+  prometheus_data:
+  grafana_data:
+  tempo_data:
+  loki_data:
+
+networks:
+  default:
+    name: otel-demo
+    driver: bridge
