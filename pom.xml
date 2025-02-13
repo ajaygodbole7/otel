@@ -61,7 +61,7 @@
 	<!-- Project Dependencies -->
 	<dependencies>
 		<!-- OpenTelemetry Dependencies  -->
-		<!--
+		<!-- Removed Otel starter since we are using Java Agent
 		<dependency>
 			<groupId>io.opentelemetry.instrumentation</groupId>
 			<artifactId>opentelemetry-kafka-clients-2.6</artifactId>
