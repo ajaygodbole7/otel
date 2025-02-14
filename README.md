@@ -65,13 +65,24 @@ This will start:
 - Tempo
 - Loki
 
-### 4. Run the Application
+### 4. Build the application
+```bash
+mvn clean package
+```
+
+### 5. Run the Application
 ```bash
 JAVA_TOOL_OPTIONS="-javaagent:./opentelemetry-javaagent.jar" \
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
+OR
 
-## Testing the Application
+```bash
+java -javaagent:./opentelemetry-javaagent.jar \
+     -jar target/otel-0.0.1-SNAPSHOT.jar \
+     --spring.profiles.active=local
+```
+
 
 ### Testing Customer API Endpoints
 
