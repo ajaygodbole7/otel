@@ -15,6 +15,7 @@ Demonstration application showcasing OpenTelemetry integration with Spring Boot 
   - Prometheus
   - Tempo
   - Loki
+- Integration Testing using TestContainers
 
 ## Prerequisites
 - Java 21
