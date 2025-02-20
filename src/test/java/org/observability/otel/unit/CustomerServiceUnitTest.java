@@ -43,7 +43,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.dao.TransientDataAccessResourceException;
-import org.testcontainers.shaded.com.google.common.base.Verify;
 
 @ExtendWith(MockitoExtension.class)
 class CustomerServiceUnitTest {
@@ -123,11 +122,11 @@ class CustomerServiceUnitTest {
 
     // Verify saved entity has correct ID and JSON
     CustomerEntity capturedEntity = entityCaptor.getValue();
-    assertThat(capturedEntity.getId()).isEqualTo(result.id());
+    assertThat(capturedEntity.getCustomerId()).isEqualTo(result.id());
     assertThat(capturedEntity.getCustomerJson()).contains(result.id().toString());
 
    // Verify saved entity has correct ID and JSON
-    assertThat(capturedEntity.getId()).isEqualTo(result.id());
+    assertThat(capturedEntity.getCustomerId()).isEqualTo(result.id());
     assertThat(capturedEntity.getCustomerJson()).contains(result.id().toString());
 
     // Verify event publishing
@@ -219,7 +218,7 @@ class CustomerServiceUnitTest {
   @DisplayName("Should find customer by id successfully - Happy Path")
   void shouldFindCustomerById() throws Exception {
     CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
+    entity.setCustomerId(basicCustomer.id());
     entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
 
     when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
@@ -407,7 +406,7 @@ class CustomerServiceUnitTest {
     assertThat(customers.stream()
                    .map(Customer::id)
                    .collect(Collectors.toList()))
-        .containsExactlyInAnyOrder(basicEntity.getId(), fullEntity.getId());
+        .containsExactlyInAnyOrder(basicEntity.getCustomerId(), fullEntity.getCustomerId());
 
     verify(customerRepository, times(1)).findAll();
   }

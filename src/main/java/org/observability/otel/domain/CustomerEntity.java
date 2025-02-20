@@ -24,26 +24,26 @@ import org.hibernate.type.SqlTypes;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CustomerEntity {
+public class CustomerEntity extends AbstractAuditingEntity<Long>{
 
   @Id
   @JdbcTypeCode(SqlTypes.BIGINT)
-  @Column(name = "id", updatable = false, nullable = false)
-  private Long id;
+  @Column(name = "customer_id", updatable = false, nullable = false)
+  private Long customerId;
 
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
   private String customerJson;
 
-  private Instant createdAt;
-  private Instant updatedAt;
+  //private Instant createdAt;
+  //private Instant updatedAt;
 
   @PrePersist
   void prePersist() {
-    if (id == null) {
-      id = TSID.Factory.getTsid().toLong();
+    if (customerId == null) {
+      customerId = TSID.Factory.getTsid().toLong();
     }
-    createdAt = Instant.now();
+    setCreatedDate( = Instant.now();
     updatedAt = createdAt;
   }
 
@@ -56,19 +56,19 @@ public class CustomerEntity {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (!(o instanceof CustomerEntity that)) return false;
-    return Objects.equals(id, that.id);
+    return Objects.equals(customerId, that.customerId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id);
+    return Objects.hash(customerId);
   }
 
   @Override
   public String toString() {
     return "CustomerEntity{"
         + "id='"
-        + id
+        + customerId
         + '\''
         + ", createdAt="
         + createdAt
@@ -81,7 +81,8 @@ public class CustomerEntity {
     this.customerJson = customerJson;
   }
 
-  public void setId(Long id) {
-    this.id = id;
+  public void setCustomerId(Long id) {
+    this.customerId = id;
   }
+
 }

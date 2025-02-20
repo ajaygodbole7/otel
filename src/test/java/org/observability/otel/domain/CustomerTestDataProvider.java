@@ -115,7 +115,7 @@ public class CustomerTestDataProvider {
   public static CustomerEntity createCustomerEntity(Customer customer) {
     try {
       return CustomerEntity.builder()
-          .id(customer.id())
+          .customerId(customer.id())
           .customerJson(objectMapper.writeValueAsString(customer))
           .createdAt(customer.createdAt())
           .updatedAt(customer.updatedAt())

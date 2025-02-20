@@ -98,7 +98,7 @@ public class CustomerService {
       log.debug("Prepared customer for saving: {}", customerToSave);
 
       CustomerEntity entity = new CustomerEntity();
-      entity.setId(customerId);
+      entity.setCustomerId(customerId);
       entity.setCustomerJson(objectMapper.writeValueAsString(customerToSave));
 
       log.info("Saving customer to database");
@@ -140,7 +140,7 @@ public class CustomerService {
       log.debug("Found existing customer entity: {}", existingEntity);
 
       Customer customerToUpdate = Customer.builder()
-          .id(existingEntity.getId())
+          .id(existingEntity.getCustomerId())
           .type(inboundCustomer.type())
           .firstName(inboundCustomer.firstName())
           .lastName(inboundCustomer.lastName())

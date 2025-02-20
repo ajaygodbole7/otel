@@ -54,7 +54,7 @@ class CustomerRepositoryTest {
     customerRepository.flush();
 
     // Then
-    customerRepository.findById(saved.getId())
+    customerRepository.findById(saved.getCustomerId())
         .map(this::convertToCustomer)
         .ifPresentOrElse(
             foundCustomer -> assertThat(foundCustomer)
@@ -75,7 +75,7 @@ class CustomerRepositoryTest {
     customerRepository.flush();
 
     // Then
-    customerRepository.findById(saved.getId())
+    customerRepository.findById(saved.getCustomerId())
         .map(this::convertToCustomer)
         .ifPresentOrElse(
             foundCustomer -> assertThat(foundCustomer)
@@ -109,7 +109,7 @@ class CustomerRepositoryTest {
     var updated = customerRepository.saveAndFlush(saved);
 
     // Then
-    customerRepository.findById(saved.getId())
+    customerRepository.findById(saved.getCustomerId())
         .map(this::convertToCustomer)
         .ifPresentOrElse(
             foundUpdatedCustomer -> {
@@ -156,7 +156,7 @@ class CustomerRepositoryTest {
 
     // Then
     assertThat(retrieved).isPresent();
-    retrieved.ifPresent(found -> assertThat(found.getId()).isEqualTo(customer.id()));
+    retrieved.ifPresent(found -> assertThat(found.getCustomerId()).isEqualTo(customer.id()));
   }
 
   @Test
@@ -199,14 +199,14 @@ class CustomerRepositoryTest {
     var savedEntity = customerRepository.saveAndFlush(entity);
 
     // Ensure customer is saved
-    assertThat(customerRepository.findById(savedEntity.getId())).isPresent();
+    assertThat(customerRepository.findById(savedEntity.getCustomerId())).isPresent();
 
     // When
-    customerRepository.deleteById(savedEntity.getId());
+    customerRepository.deleteById(savedEntity.getCustomerId());
     customerRepository.flush();
 
     // Then
-    assertThat(customerRepository.findById(savedEntity.getId())).isNotPresent();
+    assertThat(customerRepository.findById(savedEntity.getCustomerId())).isNotPresent();
   }
 
   @Test
@@ -242,16 +242,16 @@ class CustomerRepositoryTest {
     customerRepository.save(customer);
 
     // When
-    customerRepository.deleteById(customer.getId());
+    customerRepository.deleteById(customer.getCustomerId());
 
     // Then
-    assertThat(customerRepository.findById(customer.getId())).isNotPresent();
+    assertThat(customerRepository.findById(customer.getCustomerId())).isNotPresent();
   }
 
   //Utility methods
   private CustomerEntity convertToEntity(Customer customer) throws JsonProcessingException {
     var entity = new CustomerEntity();
-    entity.setId(customer.id());
+    entity.setCustomerId(customer.id());
     entity.setCustomerJson(objectMapper.writeValueAsString(customer));
     return entity;
   }
