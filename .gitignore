@@ -1,1 +1,20 @@
+# Maven build output
 target/
+
+# Downloaded agents / binaries (download via README instructions)
+opentelemetry-javaagent.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Claude Code local session config
+.claude/
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# macOS
+.DS_Store
