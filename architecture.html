@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OTel Demo — Architecture Guide</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 230px;
+    background: #0f172a;
+    color: #cbd5e1;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 200;
+    flex-shrink: 0;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-brand {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid #1e293b;
+  }
+  .sidebar-brand .logo { font-size: 13px; font-weight: 800; color: #f8fafc; letter-spacing: -0.02em; }
+  .sidebar-brand .sub  { font-size: 11px; color: #475569; margin-top: 3px; }
+
+  .nav-section { padding: 12px 0 4px; }
+  .nav-section-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #334155; padding: 0 20px 6px;
+  }
+  .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 20px;
+    color: #94a3b8; font-size: 12.5px; text-decoration: none;
+    transition: all 0.12s; cursor: pointer;
+  }
+  .nav-link:hover { color: #f1f5f9; background: #1e293b; }
+  .nav-link.active { color: #f1f5f9; background: #1e293b; border-left: 3px solid #3b82f6; padding-left: 17px; }
+  .nav-num {
+    width: 20px; height: 20px; border-radius: 5px;
+    background: #1e293b; color: #64748b;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ── Top subnav ── */
+  #top-subnav {
+    position: fixed;
+    top: 0; left: 230px; right: 0;
+    height: 40px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    z-index: 190;
+    display: flex; align-items: center;
+    padding: 0 52px; gap: 10px;
+  }
+  #topnav-title { font-size: 12px; font-weight: 600; color: #475569; white-space: nowrap; flex-shrink: 0; }
+  .topnav-sep { color: #cbd5e1; font-size: 14px; flex-shrink: 0; }
+  #topnav-pills { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; min-width: 0; flex: 1; padding-bottom: 2px; }
+  #topnav-pills::-webkit-scrollbar { height: 2px; }
+  #topnav-pills::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 1px; }
+  .snav-pill {
+    font-size: 11px; font-weight: 500;
+    padding: 3px 10px; border-radius: 999px;
+    border: 1px solid #e2e8f0; color: #64748b;
+    text-decoration: none; background: transparent;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    white-space: nowrap; flex-shrink: 0; cursor: pointer;
+  }
+  .snav-pill:hover { background: #f1f5f9; color: #1e293b; border-color: #cbd5e1; }
+  .snav-pill.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+  /* ── Main ── */
+  .main { margin-left: 230px; flex: 1; padding: 60px 52px 80px; max-width: 920px; }
+
+  /* ── Page header ── */
+  .page-header { margin-bottom: 36px; }
+  .page-header h1 { font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em; }
+  .page-header .lead { color: #374151; margin-top: 8px; font-size: 15px; max-width: 620px; }
+  .tag-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
+  .tag-blue   { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+  .tag-green  { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+  .tag-purple { background: #faf5ff; color: #7c3aed; border-color: #e9d5ff; }
+  .tag-slate  { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+  .tag-amber  { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+  .tag-rose   { background: #fff1f2; color: #e11d48; border-color: #fecdd3; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 52px; scroll-margin-top: 56px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .section-num {
+    width: 34px; height: 34px; border-radius: 9px;
+    color: #f8fafc; font-size: 14px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .blue   { background: #2563eb; }
+  .teal   { background: #0d9488; }
+  .purple { background: #7c3aed; }
+  .amber  { background: #d97706; }
+  .green  { background: #16a34a; }
+  .rose   { background: #e11d48; }
+  .sky    { background: #0284c7; }
+  .slate  { background: #475569; }
+  .orange { background: #ea580c; }
+
+  .section-header h2 { font-size: 20px; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; }
+  .section-sub { font-size: 13px; color: #475569; margin-top: 1px; }
+  hr.divider { border: none; border-top: 1px solid #e2e8f0; margin: 40px 0; }
+
+  /* ── Section body (white content wrapper) ── */
+  .section-body {
+    background: white; border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 24px 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  /* ── Card ── */
+  .card {
+    background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 12px;
+  }
+  .card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+  .card p  { font-size: 13px; color: #1e293b; line-height: 1.65; }
+  .card ul, .card ol { padding-left: 18px; margin-top: 6px; }
+  .card li { font-size: 13px; color: #1e293b; margin-bottom: 4px; line-height: 1.5; }
+  /* Cards inside a section-body use a faint bg so they lift off the white */
+  .section-body .card { background: #f8fafc; }
+  /* Inline code in body text */
+  p code, li code, .step-body code, .alert code, .tip code {
+    font-family: 'SF Mono','Fira Code','Consolas',monospace;
+    font-size: 12px; background: #f1f5f9; padding: 1px 6px;
+    border-radius: 4px; color: #0f172a; border: 1px solid #e2e8f0;
+  }
+
+  .card-grid { display: grid; gap: 12px; }
+  .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* ── Code block (VSCode Dark+ theme) ── */
+  .code-wrap {
+    border-radius: 8px; overflow: hidden;
+    border: 1px solid #2d2d2d; margin: 12px 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #2d2d2d; padding: 7px 14px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .code-header .lang-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; color: #9cdcfe; font-family: 'SF Mono','Fira Code','Consolas',monospace;
+  }
+  .code-header .lang-label.sh { color: #4ec9b0; }
+  .code-header .lang-label.json { color: #ce9178; }
+  .code {
+    background: #1e1e1e; color: #d4d4d4;
+    padding: 16px 18px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12.5px; line-height: 1.8; margin: 0;
+    overflow-x: auto; white-space: pre;
+  }
+  /* VSCode Dark+ syntax colors */
+  .code .c  { color: #6a9955; font-style: italic; }   /* comments — green */
+  .code .k  { color: #569cd6; }                        /* keywords — blue */
+  .code .s  { color: #ce9178; }                        /* strings — orange-brown */
+  .code .p  { color: #c586c0; }                        /* annotations — purple */
+  .code .fn { color: #dcdcaa; }                        /* functions — yellow */
+  .code .cl { color: #4ec9b0; }                        /* classes/types — teal */
+  .code .n  { color: #b5cea8; }                        /* numbers — light green */
+  .code .cmd { color: #d4d4d4; }                       /* shell commands */
+  .code .flag { color: #9cdcfe; }                      /* shell flags — light blue */
+  .code .prompt { color: #4ec9b0; user-select: none; } /* $ prompt */
+  .copy-btn {
+    background: #3c3c3c; border: 1px solid #555;
+    color: #9d9d9d; padding: 3px 10px; border-radius: 4px;
+    font-size: 10px; cursor: pointer; transition: all 0.12s; font-family: inherit;
+  }
+  .copy-btn:hover { background: #4e4e4e; color: #d4d4d4; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step  { display: flex; gap: 14px; align-items: flex-start; }
+  .step-circle {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #f1f5f9; border: 2px solid #e2e8f0;
+    font-size: 12px; font-weight: 700; color: #334155;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .step-body strong { display: block; font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+  .step-body p { font-size: 13px; color: #1e293b; line-height: 1.6; }
+  .step-body code { font-family: 'SF Mono','Fira Code',monospace; font-size: 11.5px; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; color: #0f172a; }
+
+  /* ── Flow diagram ── */
+  .flow-row {
+    display: flex; align-items: center; gap: 0;
+    background: white; border: 1px solid #e2e8f0;
+    border-radius: 12px; padding: 20px 28px; margin-bottom: 12px;
+    overflow-x: auto;
+  }
+  .flow-box {
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 10px 16px;
+    text-align: center; flex-shrink: 0;
+  }
+  .flow-box .fb-name { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .flow-box .fb-type { font-size: 11px; color: #475569; margin-top: 2px; }
+  .flow-arrow { color: #cbd5e1; font-size: 18px; padding: 0 10px; flex-shrink: 0; }
+
+  /* ── Two-column ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+  /* ── Alert ── */
+  .alert {
+    display: flex; gap: 10px; padding: 12px 16px;
+    border-radius: 8px; font-size: 13px; margin-bottom: 12px; line-height: 1.55;
+  }
+  .alert-info    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+  .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .alert-warn    { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; }
+
+  /* ── Tip ── */
+  .tip {
+    display: flex; gap: 10px; padding: 11px 15px;
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 8px; font-size: 12.5px; color: #92400e;
+    margin-bottom: 10px; line-height: 1.5;
+  }
+
+  /* ── Table ── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; background: white; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; }
+  .data-table th { text-align: left; padding: 10px 14px; background: #f8fafc; color: #1e293b; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+  .data-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: top; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table code { font-family: 'SF Mono','Fira Code',monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 11.5px; color: #0f172a; }
+
+  /* ── Stack list ── */
+  .stack-list { display: flex; flex-direction: column; gap: 8px; }
+  .stack-item {
+    background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .stack-item .si-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .stack-item .si-role { font-size: 12px; color: #475569; }
+
+  /* ── Obs pipeline ── */
+  .pipeline {
+    background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 24px 28px; margin-bottom: 12px;
+  }
+  .pipeline-row { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .pipeline-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #475569; width: 80px; flex-shrink: 0; }
+  .pipeline-nodes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pnode {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+    padding: 6px 14px; font-size: 13px; font-weight: 600; color: #334155;
+  }
+  .pnode.blue   { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+  .pnode.green  { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+  .pnode.amber  { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+  .pnode.purple { background: #faf5ff; border-color: #e9d5ff; color: #6d28d9; }
+  .pnode.rose   { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+  .pnode.orange { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+  .pipeline-down { text-align: center; font-size: 16px; color: #cbd5e1; margin: 4px 0 8px 94px; }
+
+  /* ── Check list ── */
+  .check-list { list-style: none; padding: 0; }
+  .check-list li { padding: 5px 0 5px 24px; position: relative; font-size: 13px; color: #475569; }
+  .check-list li::before { content: '✓'; position: absolute; left: 0; color: #16a34a; font-weight: 700; }
+
+  /* ── Footer ── */
+  .footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #94a3b8; }
+
+  h3[id], .section { scroll-margin-top: 56px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ════════════════════════════
+       SIDEBAR
+  ═════════════════════════════ -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">OTel Demo Service</div>
+      <div class="sub">Architecture Guide</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Overview</div>
+      <a class="nav-link active" onclick="goTo('intro')">
+        <span class="nav-num">★</span> Introduction
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Architecture</div>
+      <a class="nav-link" onclick="goTo('stack')">
+        <span class="nav-num">1</span> Tech Stack
+      </a>
+      <a class="nav-link" onclick="goTo('layers')">
+        <span class="nav-num">2</span> Layered Architecture
+      </a>
+      <a class="nav-link" onclick="goTo('domain')">
+        <span class="nav-num">3</span> Domain Model
+      </a>
+      <a class="nav-link" onclick="goTo('tsid')">
+        <span class="nav-num">4</span> TSID ID Generation
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Patterns</div>
+      <a class="nav-link" onclick="goTo('api')">
+        <span class="nav-num">5</span> REST API Layer
+      </a>
+      <a class="nav-link" onclick="goTo('events')">
+        <span class="nav-num">6</span> Event Publishing
+      </a>
+      <a class="nav-link" onclick="goTo('errors')">
+        <span class="nav-num">7</span> Error Handling
+      </a>
+      <a class="nav-link" onclick="goTo('json')">
+        <span class="nav-num">8</span> JsonUtils
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Operations</div>
+      <a class="nav-link" onclick="goTo('otel')">
+        <span class="nav-num">9</span> OpenTelemetry
+      </a>
+      <a class="nav-link" onclick="goTo('testing')">
+        <span class="nav-num">10</span> Testing Strategy
+      </a>
+      <a class="nav-link" onclick="goTo('infra')">
+        <span class="nav-num">11</span> Infrastructure
+      </a>
+      <a class="nav-link" onclick="goTo('dataflow')">
+        <span class="nav-num">12</span> Data Flow
+      </a>
+    </div>
+  </nav>
+
+  <!-- ════════════════════════════
+       TOP SUBNAV
+  ═════════════════════════════ -->
+  <div id="top-subnav">
+    <span id="topnav-title">Architecture</span>
+    <span class="topnav-sep">/</span>
+    <div id="topnav-pills">
+      <a class="snav-pill active" onclick="goTo('stack')">Tech Stack</a>
+      <a class="snav-pill" onclick="goTo('layers')">Layers</a>
+      <a class="snav-pill" onclick="goTo('domain')">Domain Model</a>
+      <a class="snav-pill" onclick="goTo('tsid')">TSID</a>
+      <a class="snav-pill" onclick="goTo('api')">REST API</a>
+      <a class="snav-pill" onclick="goTo('events')">Events</a>
+      <a class="snav-pill" onclick="goTo('errors')">Errors</a>
+      <a class="snav-pill" onclick="goTo('json')">JsonUtils</a>
+      <a class="snav-pill" onclick="goTo('otel')">OTel</a>
+      <a class="snav-pill" onclick="goTo('testing')">Testing</a>
+      <a class="snav-pill" onclick="goTo('infra')">Infra</a>
+      <a class="snav-pill" onclick="goTo('dataflow')">Data Flow</a>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════
+       MAIN CONTENT
+  ═════════════════════════════ -->
+  <main class="main">
+
+    <!-- Page header -->
+    <div class="page-header" id="intro">
+      <h1>OTel Demo — Architecture Guide</h1>
+      <p class="lead">A Spring Boot 3 microservice demonstrating end-to-end observability with distributed tracing, metrics, and structured logging via OpenTelemetry.</p>
+      <div class="tag-row">
+        <span class="tag tag-blue">Java 21</span>
+        <span class="tag tag-purple">Spring Boot 3.4.2</span>
+        <span class="tag tag-green">OpenTelemetry</span>
+        <span class="tag tag-amber">Kafka</span>
+        <span class="tag tag-rose">PostgreSQL</span>
+        <span class="tag tag-slate">Testcontainers</span>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span>ℹ️</span>
+      <span><strong>Purpose:</strong> This service is a working reference implementation for distributed tracing, Kafka event publishing, PostgreSQL JSONB storage, and RFC 7807 error handling in a real Spring Boot microservice.</span>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 1. Tech Stack ── -->
+    <div class="section" id="stack">
+      <div class="section-header">
+        <div class="section-num blue">1</div>
+        <div>
+          <h2>Tech Stack</h2>
+          <div class="section-sub">Key libraries and their roles</div>
+        </div>
+      </div>
+
+      <div class="section-body">
+        <div class="stack-list">
+          <div class="stack-item"><span class="si-name">Spring Boot 3.4.2 — Web, Data JPA, Kafka, Validation, Actuator</span><span class="si-role">Core framework</span></div>
+          <div class="stack-item"><span class="si-name">PostgreSQL 15 + Flyway</span><span class="si-role">Persistence &amp; schema migrations</span></div>
+          <div class="stack-item"><span class="si-name">Hypersistence TSID</span><span class="si-role">Time-sortable distributed IDs</span></div>
+          <div class="stack-item"><span class="si-name">Apache Kafka (KRaft) + CloudEvents 4.0</span><span class="si-role">Event streaming</span></div>
+          <div class="stack-item"><span class="si-name">OpenTelemetry Java Agent 2.12 + OTLP exporter</span><span class="si-role">Auto-instrumentation</span></div>
+          <div class="stack-item"><span class="si-name">Jackson + Jayway JsonPath + json-smart</span><span class="si-role">JSON utilities</span></div>
+          <div class="stack-item"><span class="si-name">Springdoc OpenAPI 2.8</span><span class="si-role">API docs / Swagger UI</span></div>
+          <div class="stack-item"><span class="si-name">Testcontainers (PostgreSQL + Kafka)</span><span class="si-role">Integration testing</span></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 2. Layered Architecture ── -->
+    <div class="section" id="layers">
+      <div class="section-header">
+        <div class="section-num teal">2</div>
+        <div>
+          <h2>Layered Architecture</h2>
+          <div class="section-sub">Request flow and component responsibilities</div>
+        </div>
+      </div>
+
+      <div class="section-body">
+      <div class="flow-row" style="border:none; padding:16px 0 8px; box-shadow:none; background:transparent;">
+        <div class="flow-box">
+          <div class="fb-name">CustomerController</div>
+          <div class="fb-type">REST Layer</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <div class="fb-name">CustomerService</div>
+          <div class="fb-type">Business Logic</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <div class="fb-name">CustomerRepository</div>
+          <div class="fb-type">Data Layer</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <div class="fb-name">PostgreSQL</div>
+          <div class="fb-type">Database</div>
+        </div>
+      </div>
+
+      <div class="flow-row" style="border:none; padding:0 0 8px; box-shadow:none; background:transparent;">
+        <div style="width:152px; opacity:0; flex-shrink:0;"></div>
+        <div class="flow-arrow" style="opacity:0;">→</div>
+        <div class="flow-box">
+          <div class="fb-name">EventPublisher</div>
+          <div class="fb-type">Kafka side-effect</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <div class="fb-name">Kafka Topic</div>
+          <div class="fb-type">customer-events</div>
+        </div>
+      </div>
+
+      <div class="alert alert-success" style="margin-top:8px; margin-bottom:0;">
+        <span>✓</span>
+        <span><strong>Rule:</strong> The service layer is the only component that talks to both the repository and the event publisher. Controllers never access the repository directly.</span>
+      </div>
+      </div><!-- /section-body -->
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 3. Domain Model ── -->
+    <div class="section" id="domain">
+      <div class="section-header">
+        <div class="section-num purple">3</div>
+        <div>
+          <h2>Domain Model</h2>
+          <div class="section-sub">Two representations of a Customer</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card" style="border-top:3px solid #2563eb;">
+            <h3>Customer <span style="font-weight:400; color:#94a3b8; font-size:12px;">— Java Record</span></h3>
+            <p>The domain object. Immutable Java record with nested value records: <code>Address</code>, <code>Email</code>, <code>Phone</code>, <code>Document</code>. Used by the REST API and service layer.</p>
+          </div>
+          <div class="card" style="border-top:3px solid #ea580c;">
+            <h3>CustomerEntity <span style="font-weight:400; color:#94a3b8; font-size:12px;">— JPA Entity</span></h3>
+            <p>The persistence object. Stores the entire <code>Customer</code> record as a single <strong>JSONB column</strong> in PostgreSQL. Decouples the relational schema from the domain model — schema changes don't require migrations.</p>
+          </div>
+          <div class="tip">
+            <span>💡</span>
+            <span>The service layer serializes <code>Customer → JSON</code> on write and deserializes <code>JSON → Customer</code> on read using Jackson's <code>ObjectMapper</code>.</span>
+          </div>
+        </div>
+        <div>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="lang-label">Java</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="code"><span class="c">// CustomerEntity — simplified</span>
+<span class="p">@Entity</span>
+<span class="k">public class</span> <span class="cl">CustomerEntity</span> {
+
+  <span class="p">@Id</span>
+  <span class="p">@GeneratedValue</span>(generator = <span class="s">"tsid"</span>)
+  <span class="k">private</span> <span class="cl">Long</span> id;
+
+  <span class="p">@Column</span>(columnDefinition = <span class="s">"jsonb"</span>)
+  <span class="k">private</span> <span class="cl">String</span> data; <span class="c">// ← full Customer JSON</span>
+
+  <span class="k">private</span> <span class="cl">LocalDateTime</span> createdAt;
+  <span class="k">private</span> <span class="cl">LocalDateTime</span> updatedAt;
+}
+
+<span class="c">// CustomerService — serialize/deserialize</span>
+entity.<span class="fn">setData</span>(objectMapper
+  .<span class="fn">writeValueAsString</span>(customer));
+
+<span class="cl">Customer</span> c = objectMapper.<span class="fn">readValue</span>(
+  entity.<span class="fn">getData</span>(), <span class="cl">Customer</span>.<span class="k">class</span>);</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 4. TSID ── -->
+    <div class="section" id="tsid">
+      <div class="section-header">
+        <div class="section-num amber">4</div>
+        <div>
+          <h2>TSID — Time-Sorted IDs</h2>
+          <div class="section-sub">Distributed-safe, sortable 63-bit identifiers</div>
+        </div>
+      </div>
+
+      <div class="section-body">
+      <div class="two-col">
+        <div class="steps">
+          <div class="step">
+            <div class="step-circle">1</div>
+            <div class="step-body">
+              <strong>63-bit structure</strong>
+              <p>41 bits timestamp · 10 bits worker node · 12 bits sequence. Fits in a <code>Long</code>, no UUID overhead.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-circle">2</div>
+            <div class="step-body">
+              <strong>Naturally sortable</strong>
+              <p>IDs sort chronologically without a separate <code>created_at</code> index — efficient for range queries and cursor-based pagination.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-circle">3</div>
+            <div class="step-body">
+              <strong>Distributed-safe</strong>
+              <p>Worker bits prevent collisions across instances without a central coordinator — no database round-trip to generate an ID.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-circle">4</div>
+            <div class="step-body">
+              <strong>Zero config via Hibernate</strong>
+              <p>Integrates with Hibernate via <code>@GeneratedValue(generator = "tsid")</code> — no custom code needed.</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="lang-label">Java</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="code"><span class="c">// TSID bit layout</span>
+<span class="c">// |&lt;--- 41 bits --->|&lt;-10->|&lt;-12->|</span>
+<span class="c">// | unix ms timestamp | node | seq  |</span>
+
+<span class="c">// Example value</span>
+<span class="n">0669204195801038848L</span>
+<span class="c">// → 2024-03-15T14:22:01Z, node 0</span>
+
+<span class="c">// vs UUID — 128-bit, not sortable</span>
+<span class="s">"550e8400-e29b-41d4-a716-446655440000"</span>
+
+<span class="c">// vs auto-increment — sequential but</span>
+<span class="c">// not distributed-safe, reveals count</span></div>
+          </div>
+
+          <table class="data-table" style="margin-top:12px;">
+            <thead><tr><th>ID Type</th><th>Sortable</th><th>Distributed</th><th>Size</th></tr></thead>
+            <tbody>
+              <tr><td><code>TSID</code></td><td>✓ Yes</td><td>✓ Yes</td><td>63-bit Long</td></tr>
+              <tr><td><code>UUID v4</code></td><td>✗ No</td><td>✓ Yes</td><td>128-bit</td></tr>
+              <tr><td><code>AUTO_INCREMENT</code></td><td>✓ Yes</td><td>✗ No</td><td>32/64-bit</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div><!-- /section-body -->
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 5. REST API ── -->
+    <div class="section" id="api">
+      <div class="section-header">
+        <div class="section-num green">5</div>
+        <div>
+          <h2>REST API Layer</h2>
+          <div class="section-sub">Interface/implementation split for clean OpenAPI contracts</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card" style="border-top:3px solid #2563eb; margin-bottom:12px;">
+            <h3>CustomerAPI — Interface</h3>
+            <p>Owns the entire OpenAPI contract. All <code>@Operation</code>, <code>@ApiResponse</code>, and <code>@Parameter</code> annotations live here.</p>
+          </div>
+          <div class="card" style="border-top:3px solid #7c3aed; margin-bottom:12px;">
+            <h3>CustomerController — Implementation</h3>
+            <p>Implements the interface. Contains zero documentation annotations — only routing and delegation to <code>CustomerService</code>.</p>
+          </div>
+          <div class="alert alert-info">
+            <span>💡</span>
+            <span><strong>Why?</strong> The interface becomes the single source of truth for the API spec. Swagger UI reads from it without cluttering the controller.</span>
+          </div>
+        </div>
+        <div>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="lang-label">Java</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="code"><span class="c">// Endpoints — base: /api/v1/customers</span>
+<span class="k">GET</span>    /api/v1/customers
+<span class="k">GET</span>    /api/v1/customers/{id}
+<span class="k">POST</span>   /api/v1/customers
+<span class="k">PUT</span>    /api/v1/customers/{id}
+<span class="k">DELETE</span> /api/v1/customers/{id}
+
+<span class="c">// CustomerController — simplified</span>
+<span class="p">@RestController</span>
+<span class="k">public class</span> <span class="cl">CustomerController</span>
+    <span class="k">implements</span> <span class="cl">CustomerAPI</span> {
+
+  <span class="p">@Override</span>
+  <span class="k">public</span> <span class="cl">ResponseEntity</span>&lt;<span class="cl">Customer</span>&gt;
+      <span class="fn">getCustomer</span>(<span class="cl">Long</span> id) {
+    <span class="k">return</span> <span class="cl">ResponseEntity</span>.<span class="fn">ok</span>(
+      service.<span class="fn">findById</span>(id));
+  }
+}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 6. Event Publishing ── -->
+    <div class="section" id="events">
+      <div class="section-header">
+        <div class="section-num rose">6</div>
+        <div>
+          <h2>Event Publishing</h2>
+          <div class="section-sub">CloudEvents spec over Kafka, async with callbacks</div>
+        </div>
+      </div>
+
+      <div class="card-grid cols-3" style="margin-bottom:16px;">
+        <div class="card" style="border-top:3px solid #16a34a;">
+          <h3>Customer::created</h3>
+          <p>Published after a successful <code>POST /customers</code>. Carries the full Customer payload.</p>
+        </div>
+        <div class="card" style="border-top:3px solid #d97706;">
+          <h3>Customer::updated</h3>
+          <p>Published after a successful <code>PUT /customers/{id}</code>. Carries the updated payload.</p>
+        </div>
+        <div class="card" style="border-top:3px solid #e11d48;">
+          <h3>Customer::deleted</h3>
+          <p>Published after a successful <code>DELETE /customers/{id}</code>. Carries the customer ID.</p>
+        </div>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="lang-label">Java</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code"><span class="c">// CustomerEventPublisher — simplified</span>
+<span class="cl">CloudEvent</span> event = <span class="cl">CloudEventBuilder</span>.<span class="fn">v1</span>()
+  .<span class="fn">withId</span>(<span class="cl">UUID</span>.<span class="fn">randomUUID</span>().<span class="fn">toString</span>())
+  .<span class="fn">withType</span>(<span class="s">"Customer::created"</span>)
+  .<span class="fn">withSource</span>(<span class="cl">URI</span>.<span class="fn">create</span>(<span class="s">"/customers"</span>))
+  .<span class="fn">withTime</span>(<span class="cl">OffsetDateTime</span>.<span class="fn">now</span>())
+  .<span class="fn">withData</span>(payload)
+  .<span class="fn">build</span>();
+
+kafkaTemplate.<span class="fn">send</span>(<span class="s">"customer-events"</span>, event)
+  .<span class="fn">whenComplete</span>((result, ex) -&gt; {
+    <span class="k">if</span> (ex != <span class="k">null</span>) log.<span class="fn">error</span>(<span class="s">"Publish failed"</span>, ex);
+    <span class="k">else</span>         log.<span class="fn">info</span>(<span class="s">"Published: {}"</span>, event.<span class="fn">getId</span>());
+  });</div>
+      </div>
+      <div class="tip" style="margin-top:10px;">
+        <span>💡</span>
+        <span>All three event types share one topic (<code>customer-events</code>). Downstream consumers filter by the CloudEvent <code>type</code> attribute — no need for separate topics per operation.</span>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 7. Error Handling ── -->
+    <div class="section" id="errors">
+      <div class="section-header">
+        <div class="section-num orange">7</div>
+        <div>
+          <h2>Error Handling</h2>
+          <div class="section-sub">RFC 7807 Problem Details with OTel trace correlation</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card" style="margin-bottom:12px;">
+            <h3>ExceptionTranslator</h3>
+            <p><code>@RestControllerAdvice</code> that intercepts all exceptions and maps them to structured Problem Details responses. No try/catch in controllers or services.</p>
+          </div>
+
+          <table class="data-table">
+            <thead><tr><th>Exception</th><th>HTTP Status</th></tr></thead>
+            <tbody>
+              <tr><td><code>CustomerNotFoundException</code></td><td>404 Not Found</td></tr>
+              <tr><td><code>CustomerConflictException</code></td><td>409 Conflict</td></tr>
+              <tr><td>Validation errors</td><td>400 Bad Request</td></tr>
+              <tr><td><code>ServiceUnavailableException</code></td><td>503 Unavailable</td></tr>
+              <tr><td>Catch-all</td><td>500 Internal Error</td></tr>
+            </tbody>
+          </table>
+
+          <div class="alert alert-warn" style="margin-top:12px;">
+            <span>🔗</span>
+            <span>Every error response includes <code>traceId</code> and <code>spanId</code>, linking the HTTP error directly to the trace in Tempo.</span>
+          </div>
+        </div>
+        <div>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="lang-label json">JSON</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="code">{
+  <span class="s">"type"</span>:     <span class="s">"about:blank"</span>,
+  <span class="s">"title"</span>:    <span class="s">"Not Found"</span>,
+  <span class="s">"status"</span>:   <span class="n">404</span>,
+  <span class="s">"detail"</span>:   <span class="s">"Customer 42 not found"</span>,
+  <span class="s">"instance"</span>: <span class="s">"/api/v1/customers/42"</span>,
+  <span class="s">"traceId"</span>:  <span class="s">"4bf92f3577b34da6..."</span>,
+  <span class="s">"spanId"</span>:   <span class="s">"00f067aa0ba902b7"</span>
+}
+
+<span class="c">// Exception hierarchy</span>
+<span class="cl">CustomerServiceException</span>        <span class="c">// base</span>
+ ├── <span class="cl">CustomerNotFoundException</span>   <span class="c">// 404</span>
+ ├── <span class="cl">CustomerConflictException</span>   <span class="c">// 409</span>
+ └── <span class="cl">ServiceUnavailableException</span> <span class="c">// 503</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 8. JsonUtils ── -->
+    <div class="section" id="json">
+      <div class="section-header">
+        <div class="section-num sky">8</div>
+        <div>
+          <h2>JsonUtils</h2>
+          <div class="section-sub">Thread-safe utility class wrapping Jackson + JSONPath</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card" style="border-top:3px solid #0284c7; margin-bottom:12px;">
+            <h3>@UtilityClass (Lombok)</h3>
+            <p>Private constructor and all-static methods enforced at compile time. Single shared <code>ObjectMapper</code> instance — construction is expensive, reuse is essential.</p>
+          </div>
+          <div class="card" style="border-top:3px solid #7c3aed; margin-bottom:12px;">
+            <h3>Dual-mode RFC validation</h3>
+            <p><code>isJson(s)</code> — RFC 7159, any root value.<br/><code>isJson(s, true)</code> — RFC 4627 strict, root must be object/array.<br/><code>FAIL_ON_TRAILING_TOKENS</code> enabled — rejects <code>"42 garbage"</code>.</p>
+          </div>
+          <div class="card" style="border-top:3px solid #16a34a;">
+            <h3>Optional-based JSONPath</h3>
+            <p><code>extractValue(json, "$.name")</code> returns <code>Optional&lt;T&gt;</code>. <code>PathNotFoundException</code> becomes <code>Optional.empty()</code>. Provider pinned to json-smart to avoid global state leakage.</p>
+          </div>
+        </div>
+        <div>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="lang-label">Java</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="code"><span class="c">// ObjectMapper — static initializer</span>
+objectMapper.<span class="fn">registerModule</span>(<span class="k">new</span> <span class="cl">JavaTimeModule</span>());
+objectMapper.<span class="fn">disable</span>(WRITE_DATES_AS_TIMESTAMPS);
+objectMapper.<span class="fn">enable</span>(FAIL_ON_TRAILING_TOKENS);
+
+<span class="c">// Isolated JsonPath provider</span>
+jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder</span>()
+  .<span class="fn">jsonProvider</span>(<span class="k">new</span> <span class="cl">JsonSmartJsonProvider</span>())
+  .<span class="fn">build</span>();
+
+<span class="c">// Usage examples</span>
+<span class="cl">Optional</span>&lt;<span class="cl">String</span>&gt; name =
+  <span class="cl">JsonUtils</span>.<span class="fn">extractValue</span>(json, <span class="s">"$.firstName"</span>);
+
+<span class="cl">Customer</span> c =
+  <span class="cl">JsonUtils</span>.<span class="fn">fromJson</span>(json, <span class="cl">Customer</span>.<span class="k">class</span>);
+
+<span class="cl">List</span>&lt;<span class="cl">Customer</span>&gt; list =
+  <span class="cl">JsonUtils</span>.<span class="fn">fromJson</span>(json, <span class="k">new</span> <span class="cl">TypeReference</span>&lt;&gt;(){});</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 9. OpenTelemetry ── -->
+    <div class="section" id="otel">
+      <div class="section-header">
+        <div class="section-num slate">9</div>
+        <div>
+          <h2>OpenTelemetry Pipeline</h2>
+          <div class="section-sub">Traces · Metrics · Logs — unified via OTLP</div>
+        </div>
+      </div>
+
+      <div class="pipeline">
+        <div class="pipeline-row">
+          <div class="pipeline-label">App</div>
+          <div class="pipeline-nodes">
+            <div class="pnode blue">Spring Boot Service</div>
+            <div class="pnode" style="font-size:12px; color:#94a3b8;">+ OTel Java Agent (auto-instrument)</div>
+          </div>
+        </div>
+        <div class="pipeline-down">↓ OTLP/HTTP :4318</div>
+        <div class="pipeline-row">
+          <div class="pipeline-label">Collector</div>
+          <div class="pipeline-nodes">
+            <div class="pnode orange">OTel Collector</div>
+            <div class="pnode" style="font-size:12px; color:#94a3b8;">receives · batches · exports</div>
+          </div>
+        </div>
+        <div class="pipeline-down">↓ fan-out to backends</div>
+        <div class="pipeline-row">
+          <div class="pipeline-label">Backends</div>
+          <div class="pipeline-nodes">
+            <div class="pnode green">Tempo — traces</div>
+            <div class="pnode amber">Prometheus — metrics</div>
+            <div class="pnode purple">Loki — logs</div>
+          </div>
+        </div>
+        <div class="pipeline-down">↓</div>
+        <div class="pipeline-row">
+          <div class="pipeline-label">UI</div>
+          <div class="pipeline-nodes">
+            <div class="pnode orange">Grafana :3000 — unified dashboards</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-success">
+        <span>🔗</span>
+        <span><strong>Log correlation:</strong> the log pattern includes <code>%X{trace_id}</code> and <code>%X{span_id}</code> — each log line links directly to a Tempo trace. Error responses also embed both IDs.</span>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 10. Testing ── -->
+    <div class="section" id="testing">
+      <div class="section-header">
+        <div class="section-num blue">10</div>
+        <div>
+          <h2>Testing Strategy</h2>
+          <div class="section-sub">Four test categories from unit to integration</div>
+        </div>
+      </div>
+
+      <div class="card-grid cols-2">
+        <div class="card" style="border-top:3px solid #2563eb;">
+          <h3>Unit Tests</h3>
+          <p>Mock-based tests for Controller, Service, EventPublisher, and ExceptionTranslator. Uses Mockito. Fast, no I/O. <code>UnitTestConfig</code> wires mock beans.</p>
+        </div>
+        <div class="card" style="border-top:3px solid #7c3aed;">
+          <h3>Integration Tests</h3>
+          <p><code>@SpringBootTest</code> with real PostgreSQL + Kafka via Testcontainers. <code>TestOtelApplication</code> is the entry point.</p>
+        </div>
+        <div class="card" style="border-top:3px solid #ea580c;">
+          <h3>Domain Tests</h3>
+          <p>Repository-level tests against a real PostgreSQL container. Validates JSONB storage, TSID generation, and Flyway migrations in isolation.</p>
+        </div>
+        <div class="card" style="border-top:3px solid #16a34a;">
+          <h3>Utility Tests</h3>
+          <p>JsonUtils split across 5 focused test classes: File, ToJson, FromJson, ExtractValue, IsJson. <code>Faker</code> generates realistic test data.</p>
+        </div>
+      </div>
+
+      <div class="code-wrap" style="margin-top:16px;">
+        <div class="code-header">
+          <span class="lang-label sh">Shell</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code"><span class="c"># Run all tests</span>
+<span class="cmd">mvn test</span>
+
+<span class="c"># Run a single test class</span>
+<span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=CustomerServiceUnitTest
+
+<span class="c"># Run a single test method</span>
+<span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=CustomerServiceUnitTest<span class="s">#shouldCreateCustomer</span></div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 11. Infrastructure ── -->
+    <div class="section" id="infra">
+      <div class="section-header">
+        <div class="section-num teal">11</div>
+        <div>
+          <h2>Infrastructure</h2>
+          <div class="section-sub">Full observability stack via Docker Compose</div>
+        </div>
+      </div>
+
+      <div class="card-grid cols-3" style="margin-bottom:16px;">
+        <div class="card">
+          <h3>PostgreSQL 15</h3>
+          <p>Customer data stored in a JSONB column. Schema managed by Flyway migrations.</p>
+        </div>
+        <div class="card">
+          <h3>Kafka (KRaft)</h3>
+          <p>No ZooKeeper. Single-node KRaft mode. Topic <code>customer-events</code> receives all CloudEvents.</p>
+        </div>
+        <div class="card">
+          <h3>OTel Collector</h3>
+          <p>OTLP receiver on :4318. Fans out to Tempo, Prometheus, and Loki.</p>
+        </div>
+        <div class="card">
+          <h3>Tempo</h3>
+          <p>Distributed trace storage. Linked from Grafana — click a trace ID in a log to jump to the waterfall view.</p>
+        </div>
+        <div class="card">
+          <h3>Loki</h3>
+          <p>Log aggregation. Structured logs include <code>trace_id</code> for cross-signal correlation.</p>
+        </div>
+        <div class="card">
+          <h3>Grafana :3000</h3>
+          <p>Unified UI. Pre-wired datasources for Tempo, Prometheus, and Loki.</p>
+        </div>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="lang-label sh">Shell</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code"><span class="c"># Start full observability stack</span>
+<span class="cmd">docker compose</span> <span class="flag">-f</span> infra/docker-compose.yml up <span class="flag">-d</span>
+
+<span class="c"># Run app with local profile (auto-connects to docker stack)</span>
+<span class="cmd">mvn spring-boot:run</span> <span class="flag">-Dspring-boot.run.profiles</span>=local
+
+<span class="c"># Run with OTel agent explicitly</span>
+<span class="cmd">java</span> <span class="flag">-javaagent</span>:opentelemetry-javaagent.jar \
+     <span class="flag">-Dspring.profiles.active</span>=local \
+     <span class="flag">-jar</span> target/otel-0.0.1-SNAPSHOT.jar</div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- ── 12. Data Flow ── -->
+    <div class="section" id="dataflow">
+      <div class="section-header">
+        <div class="section-num purple">12</div>
+        <div>
+          <h2>End-to-End Data Flow</h2>
+          <div class="section-sub">POST /customers — what happens step by step</div>
+        </div>
+      </div>
+
+      <div class="section-body">
+      <div class="steps">
+        <div class="step">
+          <div class="step-circle">1</div>
+          <div class="step-body">
+            <strong>HTTP request arrives</strong>
+            <p>OTel Java Agent intercepts the request and starts a new trace span. Spring validates the request body. <code>CustomerController.createCustomer()</code> receives a validated <code>Customer</code> record.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-circle">2</div>
+          <div class="step-body">
+            <strong>Service generates TSID and persists</strong>
+            <p><code>CustomerService.create()</code> serializes the Customer to JSON, builds a <code>CustomerEntity</code> with a new TSID (auto-generated by Hibernate), and persists via the JPA repository. The JSONB column stores the full domain object.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-circle">3</div>
+          <div class="step-body">
+            <strong>Kafka event published asynchronously</strong>
+            <p><code>CustomerEventPublisher</code> wraps the Customer in a <code>Customer::created</code> CloudEvent and sends it to <code>customer-events</code> via Kafka. The HTTP response is not held waiting for the Kafka ack.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-circle">4</div>
+          <div class="step-body">
+            <strong>Response and telemetry emitted</strong>
+            <p>HTTP 201 returned with the created Customer body. The OTel span closes and is exported to the collector. The log line for this request contains the <code>trace_id</code> for later correlation in Grafana.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-success" style="margin-top:16px; margin-bottom:0;">
+        <span>✓</span>
+        <span>All four steps produce correlated telemetry. A single <strong>trace_id</strong> ties together the HTTP span, the DB query span, the Kafka producer span, and the log lines — visible as a single waterfall in Tempo.</span>
+      </div>
+      </div><!-- /section-body -->
+    </div>
+
+    <div class="footer">
+      OTel Demo Service · Architecture Guide · Spring Boot 3.4.2 · Java 21
+    </div>
+  </main>
+
+</div><!-- /.layout -->
+
+<script>
+  function goTo(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Sidebar active link tracking
+  const sections = ['intro','stack','layers','domain','tsid','api','events','errors','json','otel','testing','infra','dataflow'];
+  const navLinks = document.querySelectorAll('.nav-link');
+  const pills    = document.querySelectorAll('.snav-pill');
+
+  const sectionIds = ['intro','stack','layers','domain','tsid','api','events','errors','json','otel','testing','infra','dataflow'];
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navLinks.forEach(l => l.classList.remove('active'));
+        pills.forEach(p => p.classList.remove('active'));
+
+        // match nav link by onclick
+        navLinks.forEach(l => {
+          if (l.getAttribute('onclick')?.includes(`'${id}'`)) l.classList.add('active');
+        });
+        pills.forEach(p => {
+          if (p.getAttribute('onclick')?.includes(`'${id}'`)) p.classList.add('active');
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sectionIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+
+  // Copy button — grab text from sibling .code div
+  function copyCode(btn) {
+    const wrap = btn.closest('.code-wrap');
+    const code = wrap.querySelector('.code');
+    navigator.clipboard.writeText(code.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>
