@@ -287,6 +287,122 @@
   .footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #94a3b8; }
 
   h3[id], .section { scroll-margin-top: 56px; }
+
+  /* ── Hamburger button ── */
+  #hamburger {
+    display: none; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 6px;
+    background: none; border: none; cursor: pointer;
+    color: #475569; flex-shrink: 0; transition: background 0.12s;
+  }
+  #hamburger:hover { background: #f1f5f9; color: #0f172a; }
+  #hamburger svg { display: block; }
+
+  /* ── Sidebar overlay ── */
+  #sidebar-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45); z-index: 199;
+  }
+  #sidebar-overlay.open { display: block; }
+
+  /* ── Search trigger button (top-nav) ── */
+  #search-trigger {
+    display: flex; align-items: center; gap: 6px;
+    margin-left: auto; flex-shrink: 0;
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 6px; padding: 4px 10px; cursor: pointer;
+    font-size: 12px; color: #64748b; transition: all 0.12s;
+  }
+  #search-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #f1f5f9; }
+  #search-trigger .st-kbd {
+    background: #e2e8f0; border-radius: 3px;
+    padding: 1px 5px; font-size: 10px; font-family: monospace; color: #475569;
+  }
+
+  /* ── Search modal ── */
+  #search-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.55); z-index: 400;
+    align-items: flex-start; justify-content: center;
+    padding-top: 80px;
+  }
+  #search-overlay.open { display: flex; }
+  #search-box {
+    background: white; border-radius: 12px;
+    width: 580px; max-width: 92vw;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  #search-input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px; border-bottom: 1px solid #e2e8f0;
+  }
+  #search-input-wrap svg { color: #94a3b8; flex-shrink: 0; }
+  #search-input {
+    flex: 1; border: none; outline: none;
+    font-size: 15px; color: #0f172a; background: transparent;
+    font-family: inherit;
+  }
+  #search-input::placeholder { color: #94a3b8; }
+  #search-clear {
+    background: #f1f5f9; border: none; cursor: pointer;
+    color: #64748b; border-radius: 4px; padding: 2px 8px;
+    font-size: 11px; display: none;
+  }
+  #search-clear.visible { display: block; }
+  #search-results { max-height: 380px; overflow-y: auto; }
+  .sr-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 11px 18px; cursor: pointer; border-bottom: 1px solid #f8fafc;
+    transition: background 0.1s;
+  }
+  .sr-item:last-child { border-bottom: none; }
+  .sr-item:hover, .sr-item.selected { background: #f1f5f9; }
+  .sr-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; margin-top: 1px;
+    background: #f1f5f9; border: 1px solid #e2e8f0;
+  }
+  .sr-body { min-width: 0; }
+  .sr-title { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .sr-sub   { font-size: 12px; color: #475569; margin-top: 2px; line-height: 1.5; }
+  .sr-sub mark, .sr-title mark {
+    background: #fef08a; color: #0f172a;
+    border-radius: 2px; padding: 0 2px; font-style: normal;
+  }
+  #search-empty {
+    padding: 36px 20px; text-align: center;
+    color: #94a3b8; font-size: 13px; display: none;
+  }
+  #search-empty.visible { display: block; }
+  #search-footer {
+    padding: 8px 18px; border-top: 1px solid #e2e8f0;
+    display: flex; gap: 16px; align-items: center;
+  }
+  .sf-hint { font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px; }
+  .sf-kbd {
+    background: #f1f5f9; border: 1px solid #e2e8f0;
+    border-radius: 3px; padding: 1px 5px;
+    font-size: 10px; font-family: monospace; color: #475569;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.22s ease;
+    }
+    .sidebar.open { transform: translateX(0); }
+    #hamburger { display: flex; }
+    #top-subnav { left: 0; padding: 0 12px; }
+    #topnav-title, .topnav-sep { display: none; }
+    .main { margin-left: 0; padding: 56px 16px 60px; max-width: 100%; }
+    #search-trigger .st-kbd { display: none; }
+    .two-col { grid-template-columns: 1fr; }
+    .card-grid.cols-3 { grid-template-columns: 1fr; }
+    .card-grid.cols-2 { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -360,7 +476,33 @@
   <!-- ════════════════════════════
        TOP SUBNAV
   ═════════════════════════════ -->
+  <!-- Search modal -->
+  <div id="search-overlay" onclick="closeSearch(event)">
+    <div id="search-box" role="dialog" aria-modal="true" aria-label="Search">
+      <div id="search-input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="search-input" type="text" placeholder="Search sections, patterns, concepts…" autocomplete="off" oninput="onSearchInput()" onkeydown="onSearchKey(event)"/>
+        <button id="search-clear" onclick="clearSearch()">Clear</button>
+      </div>
+      <div id="search-results"></div>
+      <div id="search-empty">No results for "<span id="search-query-label"></span>"</div>
+      <div id="search-footer">
+        <span class="sf-hint"><span class="sf-kbd">↑↓</span> navigate</span>
+        <span class="sf-hint"><span class="sf-kbd">↵</span> jump</span>
+        <span class="sf-hint"><span class="sf-kbd">Esc</span> close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
   <div id="top-subnav">
+    <button id="hamburger" onclick="toggleSidebar()" aria-label="Toggle navigation">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
     <span id="topnav-title">Architecture</span>
     <span class="topnav-sep">/</span>
     <div id="topnav-pills">
@@ -377,6 +519,11 @@
       <a class="snav-pill" onclick="goTo('infra')">Infra</a>
       <a class="snav-pill" onclick="goTo('dataflow')">Data Flow</a>
     </div>
+    <button id="search-trigger" onclick="openSearch()" title="Search (⌘K)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Search
+      <span class="st-kbd">⌘K</span>
+    </button>
   </div>
 
   <!-- ════════════════════════════
@@ -1065,16 +1212,15 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
 </div><!-- /.layout -->
 
 <script>
+  // ── Navigation ──────────────────────────────────────────────────
   function goTo(id) {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
+    closeSidebar();
   }
 
-  // Sidebar active link tracking
-  const sections = ['intro','stack','layers','domain','tsid','api','events','errors','json','otel','testing','infra','dataflow'];
-  const navLinks = document.querySelectorAll('.nav-link');
-  const pills    = document.querySelectorAll('.snav-pill');
-
+  const navLinks  = document.querySelectorAll('.nav-link');
+  const pills     = document.querySelectorAll('.snav-pill');
   const sectionIds = ['intro','stack','layers','domain','tsid','api','events','errors','json','otel','testing','infra','dataflow'];
 
   const observer = new IntersectionObserver((entries) => {
@@ -1083,24 +1229,15 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
         const id = entry.target.id;
         navLinks.forEach(l => l.classList.remove('active'));
         pills.forEach(p => p.classList.remove('active'));
-
-        // match nav link by onclick
-        navLinks.forEach(l => {
-          if (l.getAttribute('onclick')?.includes(`'${id}'`)) l.classList.add('active');
-        });
-        pills.forEach(p => {
-          if (p.getAttribute('onclick')?.includes(`'${id}'`)) p.classList.add('active');
-        });
+        navLinks.forEach(l => { if (l.getAttribute('onclick')?.includes(`'${id}'`)) l.classList.add('active'); });
+        pills.forEach(p   => { if (p.getAttribute('onclick')?.includes(`'${id}'`))  p.classList.add('active'); });
       }
     });
   }, { rootMargin: '-20% 0px -70% 0px' });
 
-  sectionIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) observer.observe(el);
-  });
+  sectionIds.forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
 
-  // Copy button — grab text from sibling .code div
+  // ── Copy code ────────────────────────────────────────────────────
   function copyCode(btn) {
     const wrap = btn.closest('.code-wrap');
     const code = wrap.querySelector('.code');
@@ -1109,6 +1246,191 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
       setTimeout(() => btn.textContent = 'Copy', 2000);
     });
   }
+
+  // ── Responsive sidebar ───────────────────────────────────────────
+  function toggleSidebar() {
+    const sidebar  = document.querySelector('.sidebar');
+    const overlay  = document.getElementById('sidebar-overlay');
+    const isOpen   = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', !isOpen);
+    overlay.classList.toggle('open', !isOpen);
+  }
+  function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+
+  // ── Search index ─────────────────────────────────────────────────
+  // Build a searchable index from every section's headings + text content
+  const searchIndex = [];
+  const sectionEmoji = {
+    intro:'★', stack:'📦', layers:'🏗', domain:'🧩', tsid:'🔑',
+    api:'🌐', events:'📨', errors:'⚠️', json:'{ }', otel:'📡',
+    testing:'🧪', infra:'🐳', dataflow:'⚡'
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    sectionIds.forEach(id => {
+      const sec  = document.getElementById(id);
+      if (!sec) return;
+      const h2   = sec.querySelector('h2')?.textContent.trim() || id;
+      const sub  = sec.querySelector('.section-sub')?.textContent.trim() || '';
+      // Collect all visible text, deduplicated, excluding code blocks
+      const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const p = node.parentElement;
+          // skip code blocks and section-num/header chrome
+          if (p.closest('.code, .code-header, .section-num, .nav-num, .tag-row')) return NodeFilter.FILTER_REJECT;
+          return node.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        }
+      });
+      let textParts = [];
+      while (walker.nextNode()) textParts.push(walker.currentNode.textContent.trim());
+      const fullText = textParts.join(' ').replace(/\s+/g, ' ');
+
+      // Also index individual h3 headings as sub-entries
+      sec.querySelectorAll('h3').forEach(h3 => {
+        searchIndex.push({ id, title: h3.textContent.trim(), sub: h2, full: '', emoji: sectionEmoji[id] || '§' });
+      });
+
+      searchIndex.push({ id, title: h2, sub, full: fullText, emoji: sectionEmoji[id] || '§' });
+    });
+  });
+
+  // ── Search UI ─────────────────────────────────────────────────────
+  let selectedIdx = -1;
+
+  function openSearch() {
+    document.getElementById('search-overlay').classList.add('open');
+    document.getElementById('search-input').focus();
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').classList.remove('visible');
+    renderResults('');
+    selectedIdx = -1;
+  }
+
+  function closeSearch(e) {
+    if (!e || e.target === document.getElementById('search-overlay')) {
+      document.getElementById('search-overlay').classList.remove('open');
+    }
+  }
+
+  function clearSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').classList.remove('visible');
+    document.getElementById('search-input').focus();
+    renderResults('');
+    selectedIdx = -1;
+  }
+
+  function highlight(text, query) {
+    if (!query) return text;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+  }
+
+  function excerpt(text, query, maxLen = 90) {
+    if (!query || !text) return text.slice(0, maxLen) + (text.length > maxLen ? '…' : '');
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text.slice(0, maxLen) + (text.length > maxLen ? '…' : '');
+    const start = Math.max(0, idx - 30);
+    const end   = Math.min(text.length, idx + query.length + 60);
+    return (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+  }
+
+  function renderResults(query) {
+    const container = document.getElementById('search-results');
+    const empty     = document.getElementById('search-empty');
+    document.getElementById('search-query-label').textContent = query;
+    selectedIdx = -1;
+
+    if (!query.trim()) {
+      // Show all sections when no query
+      const html = searchIndex
+        .filter(e => e.full !== '' || e.sub === e.title) // only top-level entries
+        .map((e, i) => `
+          <div class="sr-item" data-id="${e.id}" onclick="jumpTo('${e.id}')">
+            <div class="sr-icon">${e.emoji}</div>
+            <div class="sr-body">
+              <div class="sr-title">${e.title}</div>
+              ${e.sub && e.sub !== e.title ? `<div class="sr-sub">${e.sub}</div>` : ''}
+            </div>
+          </div>`).join('');
+      container.innerHTML = html;
+      empty.classList.remove('visible');
+      return;
+    }
+
+    const q = query.toLowerCase();
+    const matches = searchIndex
+      .map(e => {
+        const titleScore = e.title.toLowerCase().includes(q) ? 3 : 0;
+        const subScore   = e.sub.toLowerCase().includes(q)   ? 2 : 0;
+        const bodyScore  = e.full.toLowerCase().includes(q)  ? 1 : 0;
+        const score = titleScore + subScore + bodyScore;
+        return { ...e, score };
+      })
+      .filter(e => e.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
+
+    if (!matches.length) {
+      container.innerHTML = '';
+      empty.classList.add('visible');
+      return;
+    }
+    empty.classList.remove('visible');
+
+    container.innerHTML = matches.map((e, i) => {
+      const exc = e.full ? excerpt(e.full, query) : '';
+      return `
+        <div class="sr-item" data-id="${e.id}" onclick="jumpTo('${e.id}')">
+          <div class="sr-icon">${e.emoji}</div>
+          <div class="sr-body">
+            <div class="sr-title">${highlight(e.title, query)}</div>
+            <div class="sr-sub">${highlight(exc || e.sub, query)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function jumpTo(id) {
+    document.getElementById('search-overlay').classList.remove('open');
+    const el = document.getElementById(id);
+    if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 80);
+  }
+
+  function onSearchInput() {
+    const q = document.getElementById('search-input').value;
+    document.getElementById('search-clear').classList.toggle('visible', q.length > 0);
+    renderResults(q);
+    selectedIdx = -1;
+  }
+
+  function onSearchKey(e) {
+    const items = document.querySelectorAll('.sr-item');
+    if (e.key === 'Escape')    { closeSearch(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(items, 1);  return; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); moveSelection(items, -1); return; }
+    if (e.key === 'Enter' && selectedIdx >= 0) {
+      const id = items[selectedIdx]?.dataset.id;
+      if (id) jumpTo(id);
+    }
+  }
+
+  function moveSelection(items, dir) {
+    if (!items.length) return;
+    items[selectedIdx]?.classList.remove('selected');
+    selectedIdx = Math.max(0, Math.min(items.length - 1, selectedIdx + dir));
+    items[selectedIdx].classList.add('selected');
+    items[selectedIdx].scrollIntoView({ block: 'nearest' });
+  }
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
+    if (e.key === 'Escape') closeSearch();
+  });
 </script>
 </body>
 </html>
