@@ -2,6 +2,7 @@ package org.observability.otel.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -53,6 +54,8 @@ public class JsonUtils {
     objectMapper.registerModule(new JavaTimeModule());
     // Use ISO-8601 date/time format (e.g., "2024-01-31T15:30:00Z") instead of numeric timestamps
     objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    // Reject inputs with content after the first valid JSON value (e.g. "42 garbage")
+    objectMapper.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     /*
      * Create an isolated JsonPath configuration for this utility class

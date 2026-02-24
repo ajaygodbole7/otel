@@ -60,6 +60,20 @@ class JsonUtilsIsJsonTest {
   }
 
   @ParameterizedTest
+  @DisplayName("should reject JSON with trailing tokens (lenient mode)")
+  @ValueSource(strings = {
+      "42 garbage",           // number followed by text
+      "{} []",                // two root values
+      "true extra",           // boolean followed by text
+      "null extra",           // null followed by text
+      "\"string\" trailing",  // string followed by text
+      "[1,2,3] {}"            // array followed by object
+  })
+  void shouldRejectJsonWithTrailingTokens(String input) {
+    assertThat(JsonUtils.isJson(input)).isFalse();
+  }
+
+  @ParameterizedTest
   @DisplayName("should throw IllegalArgumentException for null or blank input")
   @NullAndEmptySource
   @ValueSource(strings = {" ", "\t", "\n", "\r", " \n\t\r "})
