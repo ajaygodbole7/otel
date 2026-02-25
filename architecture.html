@@ -534,20 +534,22 @@
     <!-- Page header -->
     <div class="page-header" id="intro">
       <h1>OTel Demo — Architecture Guide</h1>
-      <p class="lead">A Spring Boot 3 microservice demonstrating end-to-end observability with distributed tracing, metrics, and structured logging via OpenTelemetry.</p>
+      <p class="lead">A Spring Boot 3 reference microservice covering production-grade patterns: OpenTelemetry observability, PostgreSQL JSONB document storage with GIN indexes, CloudEvents on Kafka, TSID distributed IDs, JSR-380 bean validation, keyset pagination, RFC 7396 JSON Merge Patch, and RFC 7807 Problem Details.</p>
       <div class="tag-row">
         <span class="tag tag-blue">Java 21</span>
         <span class="tag tag-purple">Spring Boot 3.4.2</span>
         <span class="tag tag-green">OpenTelemetry</span>
-        <span class="tag tag-amber">Kafka</span>
-        <span class="tag tag-rose">PostgreSQL</span>
+        <span class="tag tag-amber">Kafka · CloudEvents</span>
+        <span class="tag tag-rose">PostgreSQL · JSONB</span>
         <span class="tag tag-slate">Testcontainers</span>
+        <span class="tag tag-amber">RFC 7807 · RFC 7396</span>
+        <span class="tag tag-blue">TSID · Keyset Pagination</span>
       </div>
     </div>
 
     <div class="alert alert-info">
       <span>ℹ️</span>
-      <span><strong>Purpose:</strong> This service is a working reference implementation for distributed tracing, Kafka event publishing, PostgreSQL JSONB storage, and RFC 7807 error handling in a real Spring Boot microservice.</span>
+      <span><strong>Patterns covered:</strong> distributed tracing · metrics · structured logs (OTel) &nbsp;·&nbsp; JSONB document storage with GIN indexes &nbsp;·&nbsp; CloudEvents on Kafka &nbsp;·&nbsp; TSID distributed IDs &nbsp;·&nbsp; JSR-380 bean validation &nbsp;·&nbsp; cursor-based keyset pagination &nbsp;·&nbsp; JSON Merge Patch (RFC 7396) &nbsp;·&nbsp; Problem Details error responses (RFC 7807) &nbsp;·&nbsp; Testcontainers integration tests</span>
     </div>
 
     <hr class="divider"/>
