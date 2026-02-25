@@ -28,7 +28,9 @@ public class CustomerTestDataProvider {
         .type("INDIVIDUAL")
         .firstName(faker.name().firstName())
         .lastName(faker.name().lastName())
+        .addresses(List.of(createAddress("HOME")))
         .emails(List.of(createPrimaryEmail()))
+        .phones(List.of(new Phone("MOBILE", "1", "555-123-4567")))
         .createdAt(now)
         .updatedAt(now)
         .build();
@@ -41,7 +43,9 @@ public class CustomerTestDataProvider {
         .type("INDIVIDUAL")
         .firstName(faker.name().firstName())
         .lastName(faker.name().lastName())
+        .addresses(List.of(createAddress("HOME")))
         .emails(List.of(createPrimaryEmail()))
+        .phones(List.of(new Phone("MOBILE", "1", "555-123-4567")))
         .createdAt(createdAt)
         .updatedAt(Instant.now().plusMillis(100))
         .build();
@@ -66,9 +70,9 @@ public class CustomerTestDataProvider {
             createEmail(false, "WORK")
         ))
         .phones(List.of(
-            new Phone("MOBILE", "1", faker.phoneNumber().cellPhone()),
-            new Phone("WORK", "1", faker.phoneNumber().phoneNumber()),
-            new Phone("HOME", "1", faker.phoneNumber().phoneNumber())
+            new Phone("MOBILE", "1", "555-123-4567"),
+            new Phone("WORK", "1", "555-987-6543"),
+            new Phone("HOME", "1", "555-111-2222")
         ))
         .documents(List.of(
             new Document("USA", "DRIVER_LICENSE", faker.bothify("??########")),
@@ -100,6 +104,77 @@ public class CustomerTestDataProvider {
 
   private static Email createEmail(boolean primary, String type) {
     return new Email(primary, faker.internet().emailAddress(), type);
+  }
+
+  /** Creates a customer with firstName set to null (missing). */
+  public static Customer createCustomerWithMissingFirstName(Customer base) {
+    return Customer.builder()
+        .type(base.type())
+        .lastName(base.lastName())
+        .addresses(base.addresses())
+        .emails(base.emails())
+        .phones(base.phones())
+        .build();
+  }
+
+  /** Creates a customer with a blank lastName (whitespace only). */
+  public static Customer createCustomerWithBlankLastName(Customer base) {
+    return Customer.builder()
+        .type(base.type())
+        .firstName(base.firstName())
+        .lastName("   ")
+        .addresses(base.addresses())
+        .emails(base.emails())
+        .phones(base.phones())
+        .build();
+  }
+
+  /** Creates a customer with an empty type string. */
+  public static Customer createCustomerWithBlankType(Customer base) {
+    return Customer.builder()
+        .type("")
+        .firstName(base.firstName())
+        .lastName(base.lastName())
+        .addresses(base.addresses())
+        .emails(base.emails())
+        .phones(base.phones())
+        .build();
+  }
+
+  /** Creates a customer with an empty emails list. */
+  public static Customer createCustomerWithEmptyEmails(Customer base) {
+    return Customer.builder()
+        .type(base.type())
+        .firstName(base.firstName())
+        .lastName(base.lastName())
+        .addresses(base.addresses())
+        .emails(java.util.Collections.emptyList())
+        .phones(base.phones())
+        .build();
+  }
+
+  /** Creates a customer whose first email has an invalid email address (not-an-email format). */
+  public static Customer createCustomerWithInvalidEmailFormat(Customer base) {
+    return Customer.builder()
+        .type(base.type())
+        .firstName(base.firstName())
+        .lastName(base.lastName())
+        .addresses(base.addresses())
+        .emails(List.of(new Email(true, "notanemail", "PERSONAL")))
+        .phones(base.phones())
+        .build();
+  }
+
+  /** Creates a customer whose first phone has a number that fails the pattern constraint. */
+  public static Customer createCustomerWithInvalidPhoneNumber(Customer base) {
+    return Customer.builder()
+        .type(base.type())
+        .firstName(base.firstName())
+        .lastName(base.lastName())
+        .addresses(base.addresses())
+        .emails(base.emails())
+        .phones(List.of(new Phone("MOBILE", "1", "abc")))
+        .build();
   }
 
   public static CustomerEntity createBasicCustomerEntity() {

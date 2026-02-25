@@ -463,4 +463,90 @@ class CustomerControllerUnitTest {
         .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
     assertThat(result.getResponse().getContentAsString()).contains("An unexpected error occurred");
   }
+
+  /*
+   * JSR-380 Bean Validation tests
+   */
+
+  @Test
+  @DisplayName("Should return 400 when firstName is missing")
+  void shouldRejectMissingFirstName() throws Exception {
+    Customer invalidCustomer =
+        CustomerTestDataProvider.createCustomerWithMissingFirstName(fullCustomer);
+
+    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(result.getResponse().getContentAsString()).contains("firstName");
+  }
+
+  @Test
+  @DisplayName("Should return 400 when lastName is blank")
+  void shouldRejectBlankLastName() throws Exception {
+    Customer invalidCustomer =
+        CustomerTestDataProvider.createCustomerWithBlankLastName(fullCustomer);
+
+    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(result.getResponse().getContentAsString()).contains("lastName");
+  }
+
+  @Test
+  @DisplayName("Should return 400 when type is blank")
+  void shouldRejectBlankType() throws Exception {
+    Customer invalidCustomer =
+        CustomerTestDataProvider.createCustomerWithBlankType(fullCustomer);
+
+    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(result.getResponse().getContentAsString()).contains("type");
+  }
+
+  @Test
+  @DisplayName("Should return 400 when emails list is empty")
+  void shouldRejectEmptyEmailsList() throws Exception {
+    Customer invalidCustomer =
+        CustomerTestDataProvider.createCustomerWithEmptyEmails(fullCustomer);
+
+    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(result.getResponse().getContentAsString()).contains("emails");
+  }
+
+  @Test
+  @DisplayName("Should return 400 when email format is invalid")
+  void shouldRejectInvalidEmailFormat() throws Exception {
+    Customer invalidCustomer =
+        CustomerTestDataProvider.createCustomerWithInvalidEmailFormat(fullCustomer);
+
+    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(result.getResponse().getContentAsString()).contains("emails[0].email");
+  }
+
+  @Test
+  @DisplayName("Should return 400 when phone number fails pattern validation")
+  void shouldRejectInvalidPhoneNumber() throws Exception {
+    Customer invalidCustomer =
+        CustomerTestDataProvider.createCustomerWithInvalidPhoneNumber(fullCustomer);
+
+    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(result.getResponse().getContentAsString()).contains("number");
+  }
+
+  @Test
+  @DisplayName("Should return 201 when valid full payload is submitted (regression)")
+  void shouldAcceptValidFullPayload() throws Exception {
+    when(customerService.create(any(Customer.class))).thenReturn(fullCustomer);
+
+    MvcResult result = performRequest(buildPostRequest(fullCustomer));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.CREATED.value());
+  }
 }
