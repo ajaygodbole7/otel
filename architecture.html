@@ -534,22 +534,24 @@
     <!-- Page header -->
     <div class="page-header" id="intro">
       <h1>OTel Demo — Architecture Guide</h1>
-      <p class="lead">A Spring Boot 3 reference microservice covering production-grade patterns: OpenTelemetry observability, PostgreSQL JSONB document storage with GIN indexes, CloudEvents on Kafka, TSID distributed IDs, JSR-380 bean validation, keyset pagination, RFC 7396 JSON Merge Patch, and RFC 7807 Problem Details.</p>
+      <p class="lead">A Spring Boot 3 reference microservice built around production-grade patterns: PostgreSQL JSONB document storage with GIN indexes, CloudEvents on Kafka, TSID distributed IDs, cursor-based keyset pagination, JSR-380 bean validation, OpenAPI 3.0 autogeneration, RFC 7396 JSON Merge Patch, RFC 7807 Problem Details, and OpenTelemetry observability.</p>
       <div class="tag-row">
         <span class="tag tag-blue">Java 21</span>
         <span class="tag tag-purple">Spring Boot 3.4.2</span>
-        <span class="tag tag-green">OpenTelemetry</span>
-        <span class="tag tag-amber">Kafka · CloudEvents</span>
         <span class="tag tag-rose">PostgreSQL · JSONB</span>
-        <span class="tag tag-slate">Testcontainers</span>
+        <span class="tag tag-amber">Kafka · CloudEvents</span>
+        <span class="tag tag-slate">TSID</span>
+        <span class="tag tag-slate">Keyset Pagination</span>
+        <span class="tag tag-blue">OpenAPI 3.0</span>
         <span class="tag tag-amber">RFC 7807 · RFC 7396</span>
-        <span class="tag tag-blue">TSID · Keyset Pagination</span>
+        <span class="tag tag-green">OpenTelemetry</span>
+        <span class="tag tag-slate">Testcontainers</span>
       </div>
     </div>
 
     <div class="alert alert-info">
       <span>ℹ️</span>
-      <span><strong>Patterns covered:</strong> distributed tracing · metrics · structured logs (OTel) &nbsp;·&nbsp; JSONB document storage with GIN indexes &nbsp;·&nbsp; CloudEvents on Kafka &nbsp;·&nbsp; TSID distributed IDs &nbsp;·&nbsp; JSR-380 bean validation &nbsp;·&nbsp; cursor-based keyset pagination &nbsp;·&nbsp; JSON Merge Patch (RFC 7396) &nbsp;·&nbsp; Problem Details error responses (RFC 7807) &nbsp;·&nbsp; Testcontainers integration tests</span>
+      <span><strong>Patterns covered:</strong> JSONB document storage with GIN indexes &nbsp;·&nbsp; CloudEvents on Kafka &nbsp;·&nbsp; TSID distributed IDs &nbsp;·&nbsp; cursor-based keyset pagination &nbsp;·&nbsp; JSR-380 bean validation &nbsp;·&nbsp; OpenAPI 3.0 autogeneration (Springdoc) &nbsp;·&nbsp; JSON Merge Patch (RFC 7396) &nbsp;·&nbsp; Problem Details error responses (RFC 7807) &nbsp;·&nbsp; distributed tracing · metrics · logs (OTel) &nbsp;·&nbsp; Testcontainers integration tests</span>
     </div>
 
     <hr class="divider"/>
@@ -787,15 +789,19 @@ entity.<span class="fn">setData</span>(objectMapper
         <div>
           <div class="card" style="border-top:3px solid #2563eb; margin-bottom:12px;">
             <h3>CustomerAPI — Interface</h3>
-            <p>Owns the entire OpenAPI contract. All <code>@Operation</code>, <code>@ApiResponse</code>, and <code>@Parameter</code> annotations live here.</p>
+            <p>Owns the entire OpenAPI 3.0 contract. All <code>@Operation</code>, <code>@ApiResponse</code>, and <code>@Parameter</code> annotations live here. Springdoc scans this interface at startup and autogenerates the live spec — no YAML or JSON to hand-maintain.</p>
           </div>
           <div class="card" style="border-top:3px solid #7c3aed; margin-bottom:12px;">
             <h3>CustomerController — Implementation</h3>
-            <p>Implements the interface. Contains zero documentation annotations — only routing and delegation to <code>CustomerService</code>.</p>
+            <p>Implements the interface. Contains zero documentation annotations — only routing and delegation to <code>CustomerService</code>. OpenAPI annotations never leak into business code.</p>
+          </div>
+          <div class="card" style="border-top:3px solid #16a34a; margin-bottom:12px;">
+            <h3>OpenAPI Autogeneration — Springdoc 2.8</h3>
+            <p>Spec served at <code>/v3/api-docs</code> (JSON) and <code>/v3/api-docs.yaml</code>. Interactive Swagger UI at <code>/swagger-ui.html</code>. Generated once at startup — zero runtime overhead. The spec stays in sync with the code automatically; drift is impossible.</p>
           </div>
           <div class="alert alert-info">
             <span>💡</span>
-            <span><strong>Why?</strong> The interface becomes the single source of truth for the API spec. Swagger UI reads from it without cluttering the controller.</span>
+            <span><strong>Why split interface from controller?</strong> The interface is the single source of truth for the contract. Swagger UI, generated clients, and contract tests all read from <code>/v3/api-docs</code> — the controller stays clean.</span>
           </div>
           <div class="card" style="border-top:3px solid #0d9488; margin-top:12px;">
             <h3>Keyset Pagination</h3>
