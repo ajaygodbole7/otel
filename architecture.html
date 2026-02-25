@@ -648,7 +648,7 @@
         <div>
           <div class="card" style="border-top:3px solid #2563eb;">
             <h3>Customer <span style="font-weight:400; color:#94a3b8; font-size:12px;">— Java Record</span></h3>
-            <p>The domain object. Immutable Java record with nested value records: <code>Address</code>, <code>Email</code>, <code>Phone</code>, <code>Document</code>. Used by the REST API and service layer.</p>
+            <p>The domain object. Immutable Java record with nested value records: <code>Address</code>, <code>Email</code>, <code>Phone</code>, <code>Document</code>. Used by the REST API and service layer. All fields carry <strong>JSR-380 Bean Validation</strong> constraints (<code>@NotBlank</code>, <code>@Email</code>, <code>@Size</code>, etc.) — Spring validates at the controller boundary before any service logic executes.</p>
           </div>
           <div class="card" style="border-top:3px solid #ea580c;">
             <h3>CustomerEntity <span style="font-weight:400; color:#94a3b8; font-size:12px;">— JPA Entity</span></h3>
@@ -795,6 +795,18 @@ entity.<span class="fn">setData</span>(objectMapper
             <span>💡</span>
             <span><strong>Why?</strong> The interface becomes the single source of truth for the API spec. Swagger UI reads from it without cluttering the controller.</span>
           </div>
+          <div class="card" style="border-top:3px solid #0d9488; margin-top:12px;">
+            <h3>Keyset Pagination</h3>
+            <p><code>GET /customers?limit=N&amp;after=&lt;cursor&gt;</code> — cursor is the last-seen TSID. Scales to large datasets without <code>OFFSET</code> degradation. Returns a <code>nextCursor</code> in the response when more pages exist.</p>
+          </div>
+          <div class="card" style="border-top:3px solid #d97706; margin-top:12px;">
+            <h3>PATCH — JSON Merge Patch</h3>
+            <p><code>PATCH /customers/{id}</code> follows RFC 7396. Only the supplied fields are merged; omitted fields are left unchanged. Consumers send a sparse JSON body — no need to fetch and re-send the full record.</p>
+          </div>
+          <div class="card" style="border-top:3px solid #7c3aed; margin-top:12px;">
+            <h3>Search Endpoints</h3>
+            <p><code>GET /customers/search?email=</code> and <code>?ssn=</code> perform exact-match lookups using the GIN-indexed JSONB column. Returns the matching Customer or 404 if not found.</p>
+          </div>
         </div>
         <div>
           <div class="code-wrap">
@@ -803,11 +815,14 @@ entity.<span class="fn">setData</span>(objectMapper
               <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
             <div class="code"><span class="c">// Endpoints — base: /api/v1/customers</span>
-<span class="k">GET</span>    /api/v1/customers
+<span class="k">GET</span>    /api/v1/customers?limit=N&amp;after=&lt;cursor&gt; <span class="c">// keyset pagination</span>
 <span class="k">GET</span>    /api/v1/customers/{id}
 <span class="k">POST</span>   /api/v1/customers
 <span class="k">PUT</span>    /api/v1/customers/{id}
+<span class="k">PATCH</span>  /api/v1/customers/{id}              <span class="c">// RFC 7396 JSON Merge Patch</span>
 <span class="k">DELETE</span> /api/v1/customers/{id}
+<span class="k">GET</span>    /api/v1/customers/search?email=&lt;addr&gt;
+<span class="k">GET</span>    /api/v1/customers/search?ssn=&lt;value&gt;
 
 <span class="c">// CustomerController — simplified</span>
 <span class="p">@RestController</span>
@@ -845,7 +860,7 @@ entity.<span class="fn">setData</span>(objectMapper
         </div>
         <div class="card" style="border-top:3px solid #d97706;">
           <h3>Customer::updated</h3>
-          <p>Published after a successful <code>PUT /customers/{id}</code>. Carries the updated payload.</p>
+          <p>Published after a successful <code>PUT /customers/{id}</code> or <code>PATCH /customers/{id}</code>. Carries the updated payload.</p>
         </div>
         <div class="card" style="border-top:3px solid #e11d48;">
           <h3>Customer::deleted</h3>
@@ -1111,7 +1126,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
       <div class="card-grid cols-3" style="margin-bottom:16px;">
         <div class="card">
           <h3>PostgreSQL 15</h3>
-          <p>Customer data stored in a JSONB column. Schema managed by Flyway migrations.</p>
+          <p>Customer data stored in a JSONB column. Schema managed by Flyway migrations. <code>V1_1_0</code> adds <strong>GIN indexes</strong> on the JSONB column for fast email and SSN lookups without full-table scans.</p>
         </div>
         <div class="card">
           <h3>Kafka (KRaft)</h3>
