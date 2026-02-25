@@ -701,4 +701,108 @@ class CustomerControllerUnitTest {
 
     assertResponse(result, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
   }
+
+  // -----------------------------------------------------------------------
+  // Search endpoint tests
+  // -----------------------------------------------------------------------
+
+  @Test
+  @DisplayName("Should return 200 with customer when searching by existing email")
+  void shouldReturnCustomerWhenSearchingByEmail() throws Exception {
+    when(customerService.findByEmail("found@test.com")).thenReturn(basicCustomer);
+
+    MvcResult result = mockMvc.perform(
+        get(customersUrl + "/search")
+            .param("email", "found@test.com")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+        .andReturn();
+
+    assertJsonResponse(result, HttpStatus.OK);
+    Customer responseCustomer = parseResponse(result, Customer.class);
+    assertThat(responseCustomer).usingRecursiveComparison().isEqualTo(basicCustomer);
+    verify(customerService, times(1)).findByEmail("found@test.com");
+  }
+
+  @Test
+  @DisplayName("Should return 404 Problem Detail when searching by non-existent email")
+  void shouldReturn404WhenSearchingByMissingEmail() throws Exception {
+    String errorMessage = "No customer found with email: missing@test.com";
+    when(customerService.findByEmail("missing@test.com"))
+        .thenThrow(new CustomerNotFoundException(errorMessage));
+
+    MvcResult result = mockMvc.perform(
+        get(customersUrl + "/search")
+            .param("email", "missing@test.com")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+        .andReturn();
+
+    assertErrorResponse(result, HttpStatus.NOT_FOUND, "Customer Not Found", errorMessage);
+    verify(customerService, times(1)).findByEmail("missing@test.com");
+  }
+
+  @Test
+  @DisplayName("Should return 200 with customer when searching by SSN")
+  void shouldReturnCustomerWhenSearchingBySSN() throws Exception {
+    when(customerService.findBySSN("123-45-6789")).thenReturn(basicCustomer);
+
+    MvcResult result = mockMvc.perform(
+        get(customersUrl + "/search")
+            .param("ssn", "123-45-6789")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+        .andReturn();
+
+    assertJsonResponse(result, HttpStatus.OK);
+    Customer responseCustomer = parseResponse(result, Customer.class);
+    assertThat(responseCustomer).usingRecursiveComparison().isEqualTo(basicCustomer);
+    verify(customerService, times(1)).findBySSN("123-45-6789");
+  }
+
+  @Test
+  @DisplayName("Should return 404 Problem Detail when searching by non-existent SSN")
+  void shouldReturn404WhenSearchingByMissingSSN() throws Exception {
+    String errorMessage = "No customer found with SSN provided";
+    when(customerService.findBySSN("000-00-0000"))
+        .thenThrow(new CustomerNotFoundException(errorMessage));
+
+    MvcResult result = mockMvc.perform(
+        get(customersUrl + "/search")
+            .param("ssn", "000-00-0000")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+        .andReturn();
+
+    assertErrorResponse(result, HttpStatus.NOT_FOUND, "Customer Not Found", errorMessage);
+    verify(customerService, times(1)).findBySSN("000-00-0000");
+  }
+
+  @Test
+  @DisplayName("Should return 400 when both email and ssn are provided")
+  void shouldReturn400WhenBothEmailAndSsnProvided() throws Exception {
+    MvcResult result = mockMvc.perform(
+        get(customersUrl + "/search")
+            .param("email", "a@b.com")
+            .param("ssn", "123")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+        .andReturn();
+
+    assertResponse(result, HttpStatus.BAD_REQUEST);
+    assertThat(result.getResponse().getContentAsString())
+        .contains("Exactly one of 'email' or 'ssn' must be provided");
+    verify(customerService, never()).findByEmail(any());
+    verify(customerService, never()).findBySSN(any());
+  }
+
+  @Test
+  @DisplayName("Should return 400 when neither email nor ssn is provided")
+  void shouldReturn400WhenNeitherEmailNorSsnProvided() throws Exception {
+    MvcResult result = mockMvc.perform(
+        get(customersUrl + "/search")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+        .andReturn();
+
+    assertResponse(result, HttpStatus.BAD_REQUEST);
+    assertThat(result.getResponse().getContentAsString())
+        .contains("Exactly one of 'email' or 'ssn' must be provided");
+    verify(customerService, never()).findByEmail(any());
+    verify(customerService, never()).findBySSN(any());
+  }
 }

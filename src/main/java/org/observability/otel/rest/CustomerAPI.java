@@ -103,4 +103,16 @@ public interface CustomerAPI {
   ResponseEntity<Customer> patchCustomer(
       @PathVariable @NotNull @Min(1) Long id,
       @RequestBody String patchJson);
+
+  @GetMapping(value = CUSTOMERS + "/search", produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_PROBLEM_JSON_VALUE})
+  @Operation(summary = "Search customer by email or SSN")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Customer found successfully"),
+        @ApiResponse(responseCode = "400", description = "Exactly one search parameter required"),
+        @ApiResponse(responseCode = "404", description = "Customer not found")
+      })
+  ResponseEntity<Customer> searchCustomer(
+      @RequestParam(required = false) String email,
+      @RequestParam(required = false) String ssn);
 }

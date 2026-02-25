@@ -287,7 +287,8 @@ class CustomerServiceUnitTest {
   @DisplayName("Should throw CustomerServiceException when DataAccessException occurs during update")
   void shouldThrowServiceExceptionWhenUpdateFails() {
     when(customerRepository.existsById(any())).thenReturn(true);
-    lenient().when(customerRepository.saveAndFlush(any())).thenThrow(new DataAccessException("DB Error") {});
+    when(customerRepository.findById(updatedCustomer.id())).thenReturn(Optional.of(basicEntity));
+    when(customerRepository.saveAndFlush(any())).thenThrow(new DataAccessException("DB Error") {});
 
     assertThatThrownBy(() -> customerService.update(updatedCustomer.id(), updatedCustomer))
         .isInstanceOf(CustomerServiceException.class)
@@ -447,11 +448,74 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("Should handle unexpected exceptions gracefully in translateAndThrow")
   void shouldHandleUnexpectedExceptionsGracefully() {
-    RuntimeException unexpectedException = new RuntimeException("Unexpected error");
+    when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(basicEntity));
+    doThrow(new RuntimeException("Unexpected error")).when(customerRepository).deleteById(basicCustomer.id());
 
     assertThatThrownBy(() -> customerService.delete(basicCustomer.id()))
         .isInstanceOf(CustomerServiceException.class)
         .hasMessageContaining("unexpected error");
+  }
+
+  // -----------------------------------------------------------------------
+  // findByEmail tests
+  // -----------------------------------------------------------------------
+
+  @Test
+  @DisplayName("findByEmail - repository returns value - returns mapped Customer")
+  void findByEmail_repositoryReturnsValue_returnsMappedCustomer() throws Exception {
+    CustomerEntity entity = new CustomerEntity();
+    entity.setId(basicCustomer.id());
+    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+
+    when(customerRepository.findByEmail("user@example.com")).thenReturn(Optional.of(entity));
+
+    Customer result = customerService.findByEmail("user@example.com");
+
+    assertThat(result).usingRecursiveComparison().isEqualTo(basicCustomer);
+    verify(customerRepository).findByEmail("user@example.com");
+  }
+
+  @Test
+  @DisplayName("findByEmail - repository returns empty - throws CustomerNotFoundException")
+  void findByEmail_repositoryReturnsEmpty_throwsCustomerNotFoundException() {
+    when(customerRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> customerService.findByEmail("missing@example.com"))
+        .isInstanceOf(CustomerNotFoundException.class)
+        .hasMessageContaining("No customer found with email: missing@example.com");
+
+    verify(customerRepository).findByEmail("missing@example.com");
+  }
+
+  // -----------------------------------------------------------------------
+  // findBySSN tests
+  // -----------------------------------------------------------------------
+
+  @Test
+  @DisplayName("findBySSN - repository returns value - returns mapped Customer")
+  void findBySSN_repositoryReturnsValue_returnsMappedCustomer() throws Exception {
+    CustomerEntity entity = new CustomerEntity();
+    entity.setId(basicCustomer.id());
+    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+
+    when(customerRepository.findBySSN("123-45-6789")).thenReturn(Optional.of(entity));
+
+    Customer result = customerService.findBySSN("123-45-6789");
+
+    assertThat(result).usingRecursiveComparison().isEqualTo(basicCustomer);
+    verify(customerRepository).findBySSN("123-45-6789");
+  }
+
+  @Test
+  @DisplayName("findBySSN - repository returns empty - throws CustomerNotFoundException")
+  void findBySSN_repositoryReturnsEmpty_throwsCustomerNotFoundException() {
+    when(customerRepository.findBySSN("000-00-0000")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> customerService.findBySSN("000-00-0000"))
+        .isInstanceOf(CustomerNotFoundException.class)
+        .hasMessageContaining("No customer found with SSN provided");
+
+    verify(customerRepository).findBySSN("000-00-0000");
   }
 
   // Patch Tests

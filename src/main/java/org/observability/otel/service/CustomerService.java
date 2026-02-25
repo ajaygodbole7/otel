@@ -240,6 +240,50 @@ public class CustomerService {
   }
 
   /**
+   * Find a customer by their email address.
+   *
+   * @param email The email address to search for
+   * @return The Customer object if found
+   * @throws CustomerNotFoundException if no customer is found with the given email
+   */
+  public Customer findByEmail(String email) {
+    log.info("Finding customer by email");
+    try {
+      Customer customer = customerRepository.findByEmail(email)
+          .map(this::convertToCustomer)
+          .orElseThrow(() -> new CustomerNotFoundException("No customer found with email: " + email));
+      log.info("Successfully found customer by email");
+      log.debug("Retrieved customer details: {}", customer);
+      return customer;
+    } catch (Exception e) {
+      log.error("Error finding customer by email", e);
+      return translateAndThrow(e, "Error retrieving customer by email");
+    }
+  }
+
+  /**
+   * Find a customer by their SSN.
+   *
+   * @param ssn The SSN to search for
+   * @return The Customer object if found
+   * @throws CustomerNotFoundException if no customer is found with the given SSN
+   */
+  public Customer findBySSN(String ssn) {
+    log.info("Finding customer by SSN");
+    try {
+      Customer customer = customerRepository.findBySSN(ssn)
+          .map(this::convertToCustomer)
+          .orElseThrow(() -> new CustomerNotFoundException("No customer found with SSN provided"));
+      log.info("Successfully found customer by SSN");
+      log.debug("Retrieved customer details: {}", customer);
+      return customer;
+    } catch (Exception e) {
+      log.error("Error finding customer by SSN", e);
+      return translateAndThrow(e, "Error retrieving customer by SSN");
+    }
+  }
+
+  /**
    * Retrieve a page of customers using keyset (cursor-based) pagination.
    * Fetches limit+1 rows to determine if a next page exists without a COUNT query.
    *
@@ -340,6 +384,10 @@ public class CustomerService {
     log.error("Translating exception: {} with message: {}", e.getClass().getSimpleName(), contextMessage, e);
 
     RuntimeException translatedEx = switch (e) {
+      case CustomerNotFoundException ex -> {
+        log.debug("Customer not found (pass-through): {}", ex.getMessage());
+        yield ex;
+      }
       case EmptyResultDataAccessException ex -> {
         log.debug("Resource not found: {}", contextMessage);
         yield new CustomerNotFoundException(contextMessage, ex);

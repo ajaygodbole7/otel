@@ -383,6 +383,48 @@ class CustomerIntegrationTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 
+  // -----------------------------------------------------------------------
+  // Search endpoint integration tests
+  // -----------------------------------------------------------------------
+
+  @Test
+  @DisplayName("Should find customer by email after creation")
+  void shouldFindCustomerByEmail() throws Exception {
+    // Create a full customer that has an email
+    Customer fullCustomer = CustomerTestDataProvider.createFullCustomer();
+    ResponseEntity<Customer> createResponse = restTemplate.postForEntity(baseUrl, fullCustomer, Customer.class);
+    assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    Customer createdCustomer = createResponse.getBody();
+    assertThat(createdCustomer).isNotNull();
+
+    // Extract the primary email via JsonNode (Email record is package-private)
+    com.fasterxml.jackson.databind.JsonNode customerNode = objectMapper.valueToTree(createdCustomer);
+    String email = StreamSupport.stream(customerNode.get("emails").spliterator(), false)
+        .filter(e -> e.get("primary").asBoolean())
+        .map(e -> e.get("email").asText())
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("No primary email found on created customer"));
+
+    // Search by email
+    String searchUrl = baseUrl + "/search?email=" + java.net.URLEncoder.encode(email, "UTF-8");
+    ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(searchUrl, Customer.class);
+
+    assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    Customer foundCustomer = searchResponse.getBody();
+    assertThat(foundCustomer).isNotNull();
+    assertThat(foundCustomer.id()).isEqualTo(createdCustomer.id());
+  }
+
+  @Test
+  @DisplayName("Should return 404 when searching by non-existent email")
+  void shouldReturn404WhenSearchingByNonExistentEmail() {
+    String searchUrl = baseUrl + "/search?email=nonexistent_nobody@example.com";
+
+    ResponseEntity<String> searchResponse = restTemplate.getForEntity(searchUrl, String.class);
+
+    assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
   private ResponseEntity<Customer> createCustomer(Customer customer) {
     log.info("Creating customer with ID: {}", customer.id());
     CustomerEntity entity = CustomerTestDataProvider.createCustomerEntity(customer);
