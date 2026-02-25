@@ -80,4 +80,15 @@ public class CustomerController implements CustomerAPI {
     customerService.delete(id);
     return ResponseEntity.noContent().build();
   }
+
+  /**
+   * Partially updates a customer using JSON Merge Patch semantics (RFC 7396).
+   * Only fields present in the patch document are updated; absent fields are preserved.
+   */
+  @Override
+  public ResponseEntity<Customer> patchCustomer(Long id, String patchJson) {
+    log.info("Patching customer: id={}", id);
+    Customer updated = customerService.patch(id, patchJson);
+    return ResponseEntity.ok(updated);
+  }
 }

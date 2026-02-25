@@ -454,4 +454,73 @@ class CustomerServiceUnitTest {
         .hasMessageContaining("unexpected error");
   }
 
+  // Patch Tests
+  @Test
+  @DisplayName("patch() - applies firstName change only, other fields preserved")
+  void shouldPatchFirstNameOnly() throws Exception {
+    CustomerEntity entity = new CustomerEntity();
+    entity.setId(basicCustomer.id());
+    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+
+    when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
+    when(customerRepository.existsById(basicCustomer.id())).thenReturn(true);
+    when(customerRepository.saveAndFlush(any(CustomerEntity.class))).thenAnswer(i -> i.getArgument(0));
+
+    String patchJson = "{\"firstName\":\"PatchedName\"}";
+    Customer result = customerService.patch(basicCustomer.id(), patchJson);
+
+    assertThat(result.firstName()).isEqualTo("PatchedName");
+    assertThat(result.lastName()).isEqualTo(basicCustomer.lastName());
+    assertThat(result.type()).isEqualTo(basicCustomer.type());
+    assertThat(result.emails()).isEqualTo(basicCustomer.emails());
+    verify(eventPublisher).publishCustomerUpdated(any());
+  }
+
+  @Test
+  @DisplayName("patch() - applies nested emails change")
+  void shouldPatchEmails() throws Exception {
+    CustomerEntity entity = new CustomerEntity();
+    entity.setId(basicCustomer.id());
+    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+
+    when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
+    when(customerRepository.existsById(basicCustomer.id())).thenReturn(true);
+    when(customerRepository.saveAndFlush(any(CustomerEntity.class))).thenAnswer(i -> i.getArgument(0));
+
+    String patchJson = "{\"emails\":[{\"primary\":true,\"email\":\"newemail@example.com\",\"type\":\"PERSONAL\"}]}";
+    Customer result = customerService.patch(basicCustomer.id(), patchJson);
+
+    assertThat(result.emails()).hasSize(1);
+    // Email is package-private in org.observability.otel.domain; access fields via JsonNode
+    com.fasterxml.jackson.databind.JsonNode emailNode = objectMapper.valueToTree(result.emails().get(0));
+    assertThat(emailNode.get("email").asText()).isEqualTo("newemail@example.com");
+    assertThat(result.firstName()).isEqualTo(basicCustomer.firstName());
+    assertThat(result.lastName()).isEqualTo(basicCustomer.lastName());
+  }
+
+  @Test
+  @DisplayName("patch() - id not found throws CustomerNotFoundException")
+  void shouldThrowNotFoundWhenPatchingNonExistentCustomer() {
+    when(customerRepository.findById(999L))
+        .thenThrow(new org.springframework.dao.EmptyResultDataAccessException("Customer not found", 1));
+
+    assertThatThrownBy(() -> customerService.patch(999L, "{\"firstName\":\"X\"}"))
+        .isInstanceOf(CustomerNotFoundException.class)
+        .hasMessageContaining("Error retrieving customer");
+  }
+
+  @Test
+  @DisplayName("patch() - malformed patch JSON throws IllegalArgumentException")
+  void shouldThrowIllegalArgumentExceptionForMalformedPatchJson() throws Exception {
+    CustomerEntity entity = new CustomerEntity();
+    entity.setId(basicCustomer.id());
+    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+
+    when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
+
+    assertThatThrownBy(() -> customerService.patch(basicCustomer.id(), "{invalid json}"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Failed to apply patch");
+  }
+
 }

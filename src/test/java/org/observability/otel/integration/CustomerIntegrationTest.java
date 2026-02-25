@@ -327,6 +327,62 @@ class CustomerIntegrationTest {
         .isEqualTo(createdCustomer);
   }
 
+  @Test
+  @DisplayName("Should PATCH customer firstName and verify via GET")
+  void shouldPatchCustomerFirstName() throws Exception {
+    // Create a customer first
+    Customer basicCustomer = CustomerTestDataProvider.createBasicCustomer();
+    ResponseEntity<Customer> createResponse = restTemplate.postForEntity(baseUrl, basicCustomer, Customer.class);
+    assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    Customer createdCustomer = createResponse.getBody();
+    assertThat(createdCustomer).isNotNull();
+
+    String originalLastName = createdCustomer.lastName();
+
+    // PATCH only firstName
+    HttpHeaders patchHeaders = new HttpHeaders();
+    patchHeaders.setContentType(MediaType.parseMediaType("application/merge-patch+json"));
+    patchHeaders.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+    String patchBody = "{\"firstName\":\"PatchedFirst\"}";
+    ResponseEntity<Customer> patchResponse = restTemplate.exchange(
+        baseUrl + "/" + createdCustomer.id(),
+        HttpMethod.PATCH,
+        new HttpEntity<>(patchBody, patchHeaders),
+        Customer.class);
+
+    assertThat(patchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    Customer patchedCustomer = patchResponse.getBody();
+    assertThat(patchedCustomer).isNotNull();
+    assertThat(patchedCustomer.firstName()).isEqualTo("PatchedFirst");
+    assertThat(patchedCustomer.lastName()).isEqualTo(originalLastName);
+
+    // GET to confirm via independent fetch
+    ResponseEntity<Customer> getResponse = restTemplate.getForEntity(
+        baseUrl + "/" + createdCustomer.id(), Customer.class);
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    Customer fetchedCustomer = getResponse.getBody();
+    assertThat(fetchedCustomer).isNotNull();
+    assertThat(fetchedCustomer.firstName()).isEqualTo("PatchedFirst");
+    assertThat(fetchedCustomer.lastName()).isEqualTo(originalLastName);
+  }
+
+  @Test
+  @DisplayName("Should return 404 when PATCHing non-existent customer")
+  void shouldReturn404WhenPatchingNonExistentCustomer() {
+    HttpHeaders patchHeaders = new HttpHeaders();
+    patchHeaders.setContentType(MediaType.parseMediaType("application/merge-patch+json"));
+    patchHeaders.setAccept(List.of(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON));
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        baseUrl + "/999999999",
+        HttpMethod.PATCH,
+        new HttpEntity<>("{\"firstName\":\"X\"}", patchHeaders),
+        String.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
   private ResponseEntity<Customer> createCustomer(Customer customer) {
     log.info("Creating customer with ID: {}", customer.id());
     CustomerEntity entity = CustomerTestDataProvider.createCustomerEntity(customer);

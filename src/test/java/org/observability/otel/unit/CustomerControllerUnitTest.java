@@ -11,6 +11,7 @@ import static org.observability.otel.rest.ApiConstants.ApiPath.*;
 import static org.observability.otel.rest.ApiConstants.ApiPath.BASE_V1_API_PATH;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
@@ -128,6 +129,15 @@ class CustomerControllerUnitTest {
     return delete(customersUrl + "/" + id)
         .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
         .contentType(MediaType.APPLICATION_JSON);
+  }
+
+  private static final String MERGE_PATCH_CONTENT_TYPE = "application/merge-patch+json";
+
+  private RequestBuilder buildPatchRequest(Long id, String patchJson) {
+    return patch(customersUrl + "/" + id)
+        .content(patchJson)
+        .contentType(MERGE_PATCH_CONTENT_TYPE)
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
   }
 
   private String writeValueAsString(Object value) {
@@ -614,5 +624,81 @@ class CustomerControllerUnitTest {
     MvcResult result = performRequest(buildPostRequest(fullCustomer));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.CREATED.value());
+  }
+
+  /*
+   * PATCH Tests
+   */
+  @Test
+  @DisplayName("PATCH with firstName change - 200, firstName updated, lastName preserved")
+  void shouldPatchCustomerFirstName() throws Exception {
+    Customer patchedCustomer = Customer.builder()
+        .id(basicCustomer.id())
+        .type(basicCustomer.type())
+        .firstName("Jane")
+        .lastName(basicCustomer.lastName())
+        .emails(basicCustomer.emails())
+        .createdAt(basicCustomer.createdAt())
+        .updatedAt(basicCustomer.updatedAt())
+        .build();
+
+    when(customerService.patch(eq(basicCustomer.id()), any(String.class))).thenReturn(patchedCustomer);
+
+    MvcResult result = performRequest(buildPatchRequest(basicCustomer.id(), "{\"firstName\":\"Jane\"}"));
+
+    assertJsonResponse(result, HttpStatus.OK);
+    Customer responseCustomer = readCustomerResponse(result.getResponse());
+    assertThat(responseCustomer.firstName()).isEqualTo("Jane");
+    assertThat(responseCustomer.lastName()).isEqualTo(basicCustomer.lastName());
+    verify(customerService, times(1)).patch(eq(basicCustomer.id()), any(String.class));
+  }
+
+  @Test
+  @DisplayName("PATCH with empty patch body - 200, nothing changed")
+  void shouldReturnUnchangedCustomerForEmptyPatch() throws Exception {
+    when(customerService.patch(eq(basicCustomer.id()), any(String.class))).thenReturn(basicCustomer);
+
+    MvcResult result = performRequest(buildPatchRequest(basicCustomer.id(), "{}"));
+
+    assertJsonResponse(result, HttpStatus.OK);
+    Customer responseCustomer = readCustomerResponse(result.getResponse());
+    assertThat(responseCustomer).usingRecursiveComparison().isEqualTo(basicCustomer);
+    verify(customerService, times(1)).patch(eq(basicCustomer.id()), any(String.class));
+  }
+
+  @Test
+  @DisplayName("PATCH non-existent customer - 404 Problem Detail")
+  void shouldReturn404WhenPatchingNonExistentCustomer() throws Exception {
+    String errorMessage = "Customer not found";
+    when(customerService.patch(eq(9999L), any(String.class)))
+        .thenThrow(new CustomerNotFoundException(errorMessage));
+
+    MvcResult result = performRequest(buildPatchRequest(9999L, "{\"firstName\":\"Jane\"}"));
+
+    assertErrorResponse(result, HttpStatus.NOT_FOUND, "Customer Not Found", errorMessage);
+  }
+
+  @Test
+  @DisplayName("PATCH with malformed JSON - 400")
+  void shouldReturn400ForMalformedPatchJson() throws Exception {
+    when(customerService.patch(eq(basicCustomer.id()), any(String.class)))
+        .thenThrow(new IllegalArgumentException("Failed to apply patch: Unexpected character"));
+
+    MvcResult result = performRequest(buildPatchRequest(basicCustomer.id(), "{invalid json}"));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+  }
+
+  @Test
+  @DisplayName("PATCH with wrong Content-Type application/json - 415")
+  void shouldReturn415ForWrongContentTypeOnPatch() throws Exception {
+    MvcResult result = mockMvc.perform(
+        patch(customersUrl + "/" + basicCustomer.id())
+            .content("{\"firstName\":\"Jane\"}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+        .andReturn();
+
+    assertResponse(result, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
   }
 }

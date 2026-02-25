@@ -1,7 +1,9 @@
 package org.observability.otel.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.tsid.TSID;
 import java.time.Instant;
 import java.util.List;
@@ -171,6 +173,44 @@ public class CustomerService {
     } catch (Exception e) {
       log.error("Failed to update customer with ID: {}", id, e);
       return translateAndThrow(e, "Error updating customer with ID: " + id);
+    }
+  }
+
+  /**
+   * Partially update an existing customer using JSON Merge Patch semantics (RFC 7396).
+   * Only fields present in the patch document are updated; absent fields keep their current values.
+   * A null value in the patch document sets the corresponding field to null.
+   *
+   * @param id        The ID of the customer to patch
+   * @param patchJson The JSON Merge Patch document as a raw JSON string
+   * @return The fully updated Customer object
+   * @throws CustomerNotFoundException  if the customer does not exist
+   * @throws CustomerServiceException   if the patch JSON is malformed or cannot be applied
+   */
+  @Transactional
+  public Customer patch(Long id, String patchJson) {
+    log.info("Starting customer patch process for ID: {}", id);
+    Customer existing = findById(id);
+
+    try {
+      JsonNode patchNode = objectMapper.readTree(patchJson);
+      if (!patchNode.isObject()) {
+        throw new IllegalArgumentException("Patch document must be a JSON object");
+      }
+
+      String existingJson = objectMapper.writeValueAsString(existing);
+      JsonNode existingNode = objectMapper.readTree(existingJson);
+
+      ObjectNode merged = (ObjectNode) existingNode;
+      patchNode.fields().forEachRemaining(entry -> merged.set(entry.getKey(), entry.getValue()));
+
+      Customer mergedCustomer = objectMapper.treeToValue(merged, Customer.class);
+      log.debug("Applied patch to customer ID: {}", id);
+
+      return update(id, mergedCustomer);
+    } catch (JsonProcessingException e) {
+      log.error("Failed to parse patch JSON for customer ID: {}", id, e);
+      throw new IllegalArgumentException("Failed to apply patch: " + e.getMessage(), e);
     }
   }
 

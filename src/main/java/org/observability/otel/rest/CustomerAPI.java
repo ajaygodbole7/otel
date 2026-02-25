@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -88,4 +89,18 @@ public interface CustomerAPI {
       })
   @DeleteMapping(value = CUSTOMERS + ID_PATH_VAR)
   ResponseEntity<Void> deleteCustomer(@PathVariable @NotNull @Min(1) Long id);
+
+  @Operation(summary = "Partially update a customer (JSON Merge Patch)")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Customer updated"),
+    @ApiResponse(responseCode = "400", description = "Invalid patch document"),
+    @ApiResponse(responseCode = "404", description = "Customer not found")
+  })
+  @PatchMapping(
+      value = CUSTOMERS + ID_PATH_VAR,
+      consumes = "application/merge-patch+json",
+      produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_PROBLEM_JSON_VALUE})
+  ResponseEntity<Customer> patchCustomer(
+      @PathVariable @NotNull @Min(1) Long id,
+      @RequestBody String patchJson);
 }
