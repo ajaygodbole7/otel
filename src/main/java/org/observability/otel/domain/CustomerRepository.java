@@ -2,7 +2,9 @@ package org.observability.otel.domain;
 
 
 
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -27,5 +29,8 @@ public interface CustomerRepository extends JpaRepository<CustomerEntity, Long> 
       "  WHERE doc->>'type' = 'SSN' AND doc->>'identifier' = :ssn" +
       ")", nativeQuery = true)
   Optional<CustomerEntity> findBySSN(@Param("ssn") String ssn);
+
+  @Query("SELECT c FROM CustomerEntity c WHERE (:afterId IS NULL OR c.id > :afterId) ORDER BY c.id ASC")
+  List<CustomerEntity> findNextPage(@Param("afterId") Long afterId, Limit limit);
 
 }

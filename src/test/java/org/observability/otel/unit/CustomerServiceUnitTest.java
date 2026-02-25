@@ -7,6 +7,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.observability.otel.rest.CustomerPageResponse;
+import org.springframework.data.domain.Limit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -395,32 +397,51 @@ class CustomerServiceUnitTest {
     verifyNoInteractions(eventPublisher);
   }
 
-  // find All tests
+  // getCustomers (keyset pagination) tests
   @Test
-  @DisplayName("Should retrieve all customers successfully")
-  void shouldRetrieveAllCustomersSuccessfully() {
-    when(customerRepository.findAll()).thenReturn(List.of(basicEntity, fullEntity));
+  @DisplayName("Should return first page with hasMore=true when more results exist")
+  void shouldReturnFirstPageWithHasMore() throws Exception {
+    // 3 entities exist, limit=2 → fetch 3, hasMore=true, return first 2
+    List<CustomerEntity> threeEntities = List.of(basicEntity, fullEntity,
+        CustomerTestDataProvider.createBasicCustomerEntity());
+    when(customerRepository.findNextPage(null, Limit.of(3))).thenReturn(threeEntities);
 
-    List<Customer> customers = customerService.getAllCustomers();
+    CustomerPageResponse result = customerService.getCustomers(null, 2);
 
-
-    assertThat(customers.stream()
-                   .map(Customer::id)
-                   .collect(Collectors.toList()))
-        .containsExactlyInAnyOrder(basicEntity.getId(), fullEntity.getId());
-
-    verify(customerRepository, times(1)).findAll();
+    assertThat(result.hasMore()).isTrue();
+    assertThat(result.data()).hasSize(2);
+    assertThat(result.nextCursor()).isNotNull();
+    assertThat(result.limit()).isEqualTo(2);
+    verify(customerRepository).findNextPage(null, Limit.of(3));
   }
 
   @Test
-  @DisplayName("Should return empty list when no customers are available")
-  void shouldReturnEmptyListWhenNoCustomersAvailable() {
-    when(customerRepository.findAll()).thenReturn(List.of());
+  @DisplayName("Should return last page with hasMore=false when fewer results than limit exist")
+  void shouldReturnLastPageWithNoMore() throws Exception {
+    // Only 1 entity after cursor, limit=2 → fetch 3, hasMore=false
+    List<CustomerEntity> oneEntity = List.of(fullEntity);
+    when(customerRepository.findNextPage(basicEntity.getId(), Limit.of(3))).thenReturn(oneEntity);
 
-    List<Customer> customers = customerService.getAllCustomers();
+    CustomerPageResponse result = customerService.getCustomers(basicEntity.getId(), 2);
 
-    assertThat(customers).isEmpty();
-    verify(customerRepository, times(1)).findAll();
+    assertThat(result.hasMore()).isFalse();
+    assertThat(result.data()).hasSize(1);
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.limit()).isEqualTo(2);
+    verify(customerRepository).findNextPage(basicEntity.getId(), Limit.of(3));
+  }
+
+  @Test
+  @DisplayName("Should return empty page when no customers exist")
+  void shouldReturnEmptyPageWhenNoCustomersExist() {
+    when(customerRepository.findNextPage(null, Limit.of(3))).thenReturn(List.of());
+
+    CustomerPageResponse result = customerService.getCustomers(null, 2);
+
+    assertThat(result.hasMore()).isFalse();
+    assertThat(result.data()).isEmpty();
+    assertThat(result.nextCursor()).isNull();
+    verify(customerRepository).findNextPage(null, Limit.of(3));
   }
 
   @Test

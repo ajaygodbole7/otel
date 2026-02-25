@@ -2,6 +2,10 @@ package org.observability.otel.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.observability.otel.rest.ApiConstants.ApiPath.*;
 import static org.observability.otel.rest.ApiConstants.ApiPath.BASE_V1_API_PATH;
@@ -25,6 +29,7 @@ import org.observability.otel.exception.CustomerConflictException;
 import org.observability.otel.exception.CustomerNotFoundException;
 import org.observability.otel.exception.CustomerServiceException;
 import org.observability.otel.rest.CustomerController;
+import org.observability.otel.rest.CustomerPageResponse;
 import org.observability.otel.service.CustomerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -227,24 +232,51 @@ class CustomerControllerUnitTest {
   }
 
   @Test
-  @DisplayName("Should list all customers successfully")
-  void shouldListAllCustomersSuccessfully() throws Exception {
+  @DisplayName("Should list customers with keyset pagination - first page")
+  void shouldListCustomersWithKeysetPaginationFirstPage() throws Exception {
     List<Customer> customers = Arrays.asList(basicCustomer, updatedCustomer);
-    when(customerService.getAllCustomers()).thenReturn(customers);
+    CustomerPageResponse page = new CustomerPageResponse(customers, updatedCustomer.id(), true, 2);
+    when(customerService.getCustomers(isNull(), eq(2))).thenReturn(page);
 
     MvcResult result =
         mockMvc
             .perform(
                 get(customersUrl)
+                    .param("limit", "2")
                     .accept(MediaType.APPLICATION_JSON)
                     .contentType(MediaType.APPLICATION_JSON))
             .andReturn();
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
+    CustomerPageResponse response = parseResponse(result, CustomerPageResponse.class);
+    assertThat(response.data()).hasSize(2);
+    assertThat(response.hasMore()).isTrue();
+    assertThat(response.nextCursor()).isEqualTo(updatedCustomer.id());
+    assertThat(response.limit()).isEqualTo(2);
+  }
 
-    java.util.List<org.observability.otel.domain.Customer> responseCustomers =
-        java.util.Arrays.asList(parseResponse(result, Customer[].class));
-    assertThat(responseCustomers).usingRecursiveComparison().isEqualTo(customers);
+  @Test
+  @DisplayName("Should list customers with keyset pagination - next page using cursor")
+  void shouldListCustomersWithKeysetPaginationNextPage() throws Exception {
+    List<Customer> customers = List.of(fullCustomer);
+    CustomerPageResponse page = new CustomerPageResponse(customers, null, false, 2);
+    when(customerService.getCustomers(eq(basicCustomer.id()), eq(2))).thenReturn(page);
+
+    MvcResult result =
+        mockMvc
+            .perform(
+                get(customersUrl)
+                    .param("limit", "2")
+                    .param("after", basicCustomer.id().toString())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .contentType(MediaType.APPLICATION_JSON))
+            .andReturn();
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
+    CustomerPageResponse response = parseResponse(result, CustomerPageResponse.class);
+    assertThat(response.data()).hasSize(1);
+    assertThat(response.hasMore()).isFalse();
+    assertThat(response.nextCursor()).isNull();
   }
 
   @Test
@@ -427,9 +459,40 @@ class CustomerControllerUnitTest {
   }
 
   @Test
-  @DisplayName("Should return an empty list when no customers exist")
-  void shouldReturnEmptyListWhenNoCustomersExist() throws Exception {
-    when(customerService.getAllCustomers()).thenReturn(Collections.emptyList());
+  @DisplayName("Should return 400 when limit is below minimum (0)")
+  void shouldRejectLimitBelowMin() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                get(customersUrl)
+                    .param("limit", "0")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+            .andReturn();
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+  }
+
+  @Test
+  @DisplayName("Should return 400 when limit exceeds maximum (101)")
+  void shouldRejectLimitAboveMax() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                get(customersUrl)
+                    .param("limit", "101")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
+            .andReturn();
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+  }
+
+  @Test
+  @DisplayName("Should return empty page when no customers exist")
+  void shouldReturnEmptyPageWhenNoCustomersExist() throws Exception {
+    CustomerPageResponse emptyPage = new CustomerPageResponse(Collections.emptyList(), null, false, 20);
+    when(customerService.getCustomers(isNull(), eq(20))).thenReturn(emptyPage);
 
     MvcResult result =
         mockMvc
@@ -440,7 +503,10 @@ class CustomerControllerUnitTest {
             .andReturn();
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
-    assertThat(result.getResponse().getContentAsString()).isEqualTo("[]");
+    CustomerPageResponse response = parseResponse(result, CustomerPageResponse.class);
+    assertThat(response.data()).isEmpty();
+    assertThat(response.hasMore()).isFalse();
+    assertThat(response.nextCursor()).isNull();
   }
 
   @Test

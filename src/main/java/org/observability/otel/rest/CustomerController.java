@@ -11,6 +11,7 @@ import org.observability.otel.service.CustomerService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * REST controller implementation for Customer management.
@@ -36,9 +37,10 @@ public class CustomerController implements CustomerAPI {
   }
 
   @Override
-  public ResponseEntity<List<Customer>> getAllCustomers() {
-    List<Customer> customers = customerService.getAllCustomers();
-    return ResponseEntity.ok(customers);
+  public ResponseEntity<CustomerPageResponse> getCustomers(int limit, Long after) {
+    log.info("Getting customers page: limit={}, after={}", limit, after);
+    CustomerPageResponse page = customerService.getCustomers(after, limit);
+    return ResponseEntity.ok(page);
   }
 
 

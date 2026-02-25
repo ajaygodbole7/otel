@@ -8,11 +8,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.domain.Limit;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -246,6 +248,75 @@ class CustomerRepositoryTest {
 
     // Then
     assertThat(customerRepository.findById(customer.getId())).isNotPresent();
+  }
+
+  // findNextPage (keyset pagination) tests
+  @Test
+  @DisplayName("findNextPage(null, 3) with 5 customers should return first 3")
+  void shouldReturnFirstPageOfCustomers() throws JsonProcessingException {
+    // Given: save 5 customers with monotonically increasing TSID ids
+    customerRepository.deleteAll();
+    List<CustomerEntity> saved = new java.util.ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      var entity = convertToEntity(CustomerTestDataProvider.createBasicCustomer());
+      saved.add(customerRepository.saveAndFlush(entity));
+    }
+    // Sort by id so we know ordering
+    saved.sort(java.util.Comparator.comparingLong(CustomerEntity::getId));
+
+    // When
+    List<CustomerEntity> page = customerRepository.findNextPage(null, Limit.of(3));
+
+    // Then: first 3 in id order
+    assertThat(page).hasSize(3);
+    assertThat(page.get(0).getId()).isEqualTo(saved.get(0).getId());
+    assertThat(page.get(1).getId()).isEqualTo(saved.get(1).getId());
+    assertThat(page.get(2).getId()).isEqualTo(saved.get(2).getId());
+  }
+
+  @Test
+  @DisplayName("findNextPage(id_of_2nd, 3) should return 3rd, 4th, 5th customers")
+  void shouldReturnNextPageAfterCursor() throws JsonProcessingException {
+    // Given: save 5 customers
+    customerRepository.deleteAll();
+    List<CustomerEntity> saved = new java.util.ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      var entity = convertToEntity(CustomerTestDataProvider.createBasicCustomer());
+      saved.add(customerRepository.saveAndFlush(entity));
+    }
+    saved.sort(java.util.Comparator.comparingLong(CustomerEntity::getId));
+
+    Long cursorId = saved.get(1).getId(); // id of 2nd customer
+
+    // When
+    List<CustomerEntity> page = customerRepository.findNextPage(cursorId, Limit.of(3));
+
+    // Then: 3rd, 4th, 5th
+    assertThat(page).hasSize(3);
+    assertThat(page.get(0).getId()).isEqualTo(saved.get(2).getId());
+    assertThat(page.get(1).getId()).isEqualTo(saved.get(3).getId());
+    assertThat(page.get(2).getId()).isEqualTo(saved.get(4).getId());
+  }
+
+  @Test
+  @DisplayName("findNextPage(id_of_last, 3) should return empty list")
+  void shouldReturnEmptyPageWhenCursorIsLastId() throws JsonProcessingException {
+    // Given: save 5 customers
+    customerRepository.deleteAll();
+    List<CustomerEntity> saved = new java.util.ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      var entity = convertToEntity(CustomerTestDataProvider.createBasicCustomer());
+      saved.add(customerRepository.saveAndFlush(entity));
+    }
+    saved.sort(java.util.Comparator.comparingLong(CustomerEntity::getId));
+
+    Long lastId = saved.get(4).getId(); // id of last customer
+
+    // When
+    List<CustomerEntity> page = customerRepository.findNextPage(lastId, Limit.of(3));
+
+    // Then: empty
+    assertThat(page).isEmpty();
   }
 
   //Utility methods

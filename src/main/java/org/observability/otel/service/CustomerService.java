@@ -7,6 +7,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.observability.otel.rest.CustomerPageResponse;
+import org.springframework.data.domain.Limit;
 import lombok.extern.slf4j.Slf4j;
 import org.observability.otel.domain.Customer;
 import org.observability.otel.domain.CustomerEntity;
@@ -198,22 +200,26 @@ public class CustomerService {
   }
 
   /**
-   * Retrieve all customers from the database.
+   * Retrieve a page of customers using keyset (cursor-based) pagination.
+   * Fetches limit+1 rows to determine if a next page exists without a COUNT query.
    *
-   * @return List of all customers
+   * @param afterId the TSID cursor; null means start from the beginning
+   * @param limit   maximum number of customers to return per page
+   * @return CustomerPageResponse containing the page data, nextCursor, hasMore flag, and limit
    */
-  public List<Customer> getAllCustomers() {
-    log.info("Retrieving all customers");
+  public CustomerPageResponse getCustomers(Long afterId, int limit) {
+    log.info("Getting customers page: afterId={}, limit={}", afterId, limit);
     try {
-      List<Customer> customers = customerRepository.findAll().stream()
-          .map(this::convertToCustomer)
-          .collect(Collectors.toList());
-      log.info("Successfully retrieved {} customers", customers.size());
-      log.debug("Retrieved customers: {}", customers);
-      return customers;
+      List<CustomerEntity> entities = customerRepository.findNextPage(afterId, Limit.of(limit + 1));
+      boolean hasMore = entities.size() > limit;
+      List<CustomerEntity> pageEntities = hasMore ? entities.subList(0, limit) : entities;
+      List<Customer> customers = pageEntities.stream().map(this::convertToCustomer).toList();
+      Long nextCursor = hasMore ? customers.get(customers.size() - 1).id() : null;
+      log.info("Retrieved {} customers, hasMore={}", customers.size(), hasMore);
+      return new CustomerPageResponse(customers, nextCursor, hasMore, limit);
     } catch (Exception e) {
-      log.error("Failed to retrieve all customers", e);
-      return translateAndThrow(e, "Error retrieving all customers");
+      log.error("Failed to retrieve customers page", e);
+      return translateAndThrow(e, "Error retrieving customers page");
     }
   }
 

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(
     name = "Customers",
@@ -43,14 +45,16 @@ public interface CustomerAPI {
   @GetMapping(value = CUSTOMERS + ID_PATH_VAR)
   ResponseEntity<Customer> getCustomer(@PathVariable @NotNull @Min(1) Long id);
 
-  @Operation(summary = "Retrieve all customers")
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "Customers retrieved successfully"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-      })
-  @GetMapping(value = CUSTOMERS)
-  ResponseEntity<List<Customer>> getAllCustomers();
+  @GetMapping(value = CUSTOMERS, produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_PROBLEM_JSON_VALUE})
+  @Operation(summary = "List customers with keyset pagination")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Page of customers"),
+      @ApiResponse(responseCode = "400", description = "Invalid limit or cursor")
+  })
+  ResponseEntity<CustomerPageResponse> getCustomers(
+      @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
+      @RequestParam(required = false) Long after
+  );
 
   @Operation(summary = "Create a new customer")
   @ApiResponses(
