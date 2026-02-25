@@ -86,27 +86,26 @@ System default may be Java 25. Always force Java 21 for Maven:
 JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test
 ```
 
-## In-Progress Work (resume point)
+## Next Planned Work
 
-Five feature branches are complete, tested, and pushed to `origin`. They have **not been merged to `main`**. Merge them in this recommended order:
+**Spring Boot 4 + Java 25 upgrade** — OTel span error marking was deferred to this upgrade.
 
-| Order | Branch | Commit | Tests | What it does |
-|-------|--------|--------|-------|--------------|
-| 1 | `feature/jsonb-gin-indexes` | `4461153` | migration | Flyway: GIN index on `customer_json` JSONB column |
-| 2 | `feature/jsr380-validation` | `f753189` | 47 pass | `@Valid`/`@NotBlank`/`@Email` on Customer domain records |
-| 3 | `feature/keyset-pagination` | `b335847` | 44 pass | Cursor-based pagination (`?limit=N&after=<cursor>`) replaces list-all |
-| 4 | `feature/patch-endpoint` | `f5a9b75` | 49 pass | `PATCH /customers/{id}` with RFC 7396 JSON Merge Patch |
-| 5 | `feature/search-endpoints` | `6427ab3` | 50 pass | `GET /customers/search?email=` and `?ssn=` |
+## Merged Features (all on `main`)
 
-**Breaking change in keyset-pagination**: `getAllCustomers()` was replaced by `getCustomers(Long afterId, int limit)` — check for any other callers before merging.
+| Commit | Feature |
+|--------|---------|
+| `bc4de5d` | GIN indexes on JSONB column via Flyway (V1_1_0) |
+| `d4b8770` | JSR-380 Bean Validation on Customer domain records |
+| `95e935e` | Keyset pagination — `GET /customers?limit=N&after=<cursor>` |
+| `654a0fa` | PATCH endpoint — `PATCH /customers/{id}` (RFC 7396 JSON Merge Patch) |
+| `7a3653d` | Search endpoints — `GET /customers/search?email=` and `?ssn=` |
 
-**After merging**: Next planned work is **Spring Boot 4 + Java 25 upgrade** (OTel span error marking was deferred to this upgrade).
-
-### Important patterns to know before touching any branch
+## Important Patterns
 
 - **Package-private nested records**: `Email`, `Phone`, `Address`, `Document` are package-private inside `org.observability.otel.domain`. Tests outside that package must use `objectMapper.valueToTree()` + `JsonNode` to read their fields — never call `.email()` / `.primary()` directly from outside the package.
 - **Not-found mock pattern**: In unit tests, mock "customer not found" as `.thenThrow(new EmptyResultDataAccessException(...))` — NOT `.thenReturn(Optional.empty())`. The service wraps the `orElseThrow` path through `translateAndThrow`.
-- **`translateAndThrow`**: `CustomerNotFoundException` has a pass-through case (added in search-endpoints). All other unknown exceptions fall to the default case → `CustomerServiceException`.
+- **`translateAndThrow`**: `CustomerNotFoundException` has a pass-through case. All other unknown exceptions fall to the default case → `CustomerServiceException`.
+- **Keyset pagination**: `getAllCustomers()` no longer exists — use `getCustomers(Long afterId, int limit)` instead.
 
 ## Key Files
 
