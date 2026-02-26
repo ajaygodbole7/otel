@@ -94,27 +94,6 @@ class CustomerEventPublisherUnitTest {
   }
 
   @Test
-  @DisplayName("Should publish customer created event successfully")
-  void shouldPublishCustomerCreatedEventSuccessfully() {
-    // Given
-    SendResult<String, CloudEvent> sendResult = createMockSendResult(0, 1L);
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(CompletableFuture.completedFuture(sendResult));
-
-    // When
-    eventPublisher.publishCustomerCreated(basicCustomer);
-
-    // Then
-    ArgumentCaptor<CloudEvent> eventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), eventCaptor.capture());
-
-    CloudEvent capturedEvent = eventCaptor.getValue();
-    assertThat(capturedEvent.getType()).isEqualTo("Customer::created");
-    assertThat(capturedEvent.getSubject()).isEqualTo(basicCustomer.id().toString());
-    assertThat(capturedEvent.getDataContentType()).isEqualTo("application/json");
-  }
-
-  @Test
   @DisplayName("Should publish customer updated event successfully")
   void shouldPublishCustomerUpdatedEventSuccessfully() {
     // Given

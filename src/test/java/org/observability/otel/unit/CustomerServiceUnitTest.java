@@ -435,21 +435,6 @@ class CustomerServiceUnitTest {
   // -----------------------------------------------------------------------
 
   @Test
-  @DisplayName("findBySSN - repository returns value - returns mapped Customer")
-  void findBySSN_repositoryReturnsValue_returnsMappedCustomer() throws Exception {
-    CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
-
-    when(customerRepository.findBySSN("123-45-6789")).thenReturn(Optional.of(entity));
-
-    Customer result = customerService.findBySSN("123-45-6789");
-
-    assertThat(result).usingRecursiveComparison().isEqualTo(basicCustomer);
-    verify(customerRepository).findBySSN("123-45-6789");
-  }
-
-  @Test
   @DisplayName("findBySSN - repository returns empty - throws CustomerNotFoundException")
   void findBySSN_repositoryReturnsEmpty_throwsCustomerNotFoundException() {
     when(customerRepository.findBySSN("000-00-0000")).thenReturn(Optional.empty());

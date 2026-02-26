@@ -24,10 +24,14 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.observability.otel.config.UnitTestConfig;
 import org.observability.otel.domain.*;
 import org.observability.otel.exception.CustomerConflictException;
@@ -516,76 +520,27 @@ class CustomerControllerUnitTest {
    * JSR-380 Bean Validation tests
    */
 
-  @Test
-  @DisplayName("Should return 400 when firstName is missing")
-  void shouldRejectMissingFirstName() throws Exception {
-    Customer invalidCustomer =
-        CustomerTestDataProvider.createCustomerWithMissingFirstName(fullCustomer);
-
+  @ParameterizedTest(name = "should return 400 when {1} fails validation")
+  @DisplayName("Should return 400 when bean validation fails")
+  @MethodSource("invalidPostCustomers")
+  void shouldRejectInvalidCreateRequest(Customer invalidCustomer, String expectedField)
+      throws Exception {
     MvcResult result = performRequest(buildPostRequest(invalidCustomer));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-    assertThat(result.getResponse().getContentAsString()).contains("firstName");
+    assertThat(result.getResponse().getContentAsString()).contains(expectedField);
   }
 
-  @Test
-  @DisplayName("Should return 400 when lastName is blank")
-  void shouldRejectBlankLastName() throws Exception {
-    Customer invalidCustomer =
-        CustomerTestDataProvider.createCustomerWithBlankLastName(fullCustomer);
-
-    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
-
-    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-    assertThat(result.getResponse().getContentAsString()).contains("lastName");
-  }
-
-  @Test
-  @DisplayName("Should return 400 when type is blank")
-  void shouldRejectBlankType() throws Exception {
-    Customer invalidCustomer =
-        CustomerTestDataProvider.createCustomerWithBlankType(fullCustomer);
-
-    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
-
-    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-    assertThat(result.getResponse().getContentAsString()).contains("type");
-  }
-
-  @Test
-  @DisplayName("Should return 400 when emails list is empty")
-  void shouldRejectEmptyEmailsList() throws Exception {
-    Customer invalidCustomer =
-        CustomerTestDataProvider.createCustomerWithEmptyEmails(fullCustomer);
-
-    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
-
-    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-    assertThat(result.getResponse().getContentAsString()).contains("emails");
-  }
-
-  @Test
-  @DisplayName("Should return 400 when email format is invalid")
-  void shouldRejectInvalidEmailFormat() throws Exception {
-    Customer invalidCustomer =
-        CustomerTestDataProvider.createCustomerWithInvalidEmailFormat(fullCustomer);
-
-    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
-
-    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-    assertThat(result.getResponse().getContentAsString()).contains("emails[0].email");
-  }
-
-  @Test
-  @DisplayName("Should return 400 when phone number fails pattern validation")
-  void shouldRejectInvalidPhoneNumber() throws Exception {
-    Customer invalidCustomer =
-        CustomerTestDataProvider.createCustomerWithInvalidPhoneNumber(fullCustomer);
-
-    MvcResult result = performRequest(buildPostRequest(invalidCustomer));
-
-    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-    assertThat(result.getResponse().getContentAsString()).contains("number");
+  static Stream<Arguments> invalidPostCustomers() {
+    Customer full = CustomerTestDataProvider.createFullCustomer();
+    return Stream.of(
+        Arguments.of(CustomerTestDataProvider.createCustomerWithMissingFirstName(full), "firstName"),
+        Arguments.of(CustomerTestDataProvider.createCustomerWithBlankLastName(full), "lastName"),
+        Arguments.of(CustomerTestDataProvider.createCustomerWithBlankType(full), "type"),
+        Arguments.of(CustomerTestDataProvider.createCustomerWithEmptyEmails(full), "emails"),
+        Arguments.of(CustomerTestDataProvider.createCustomerWithInvalidEmailFormat(full), "emails[0].email"),
+        Arguments.of(CustomerTestDataProvider.createCustomerWithInvalidPhoneNumber(full), "number")
+    );
   }
 
   @Test
