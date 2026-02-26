@@ -29,6 +29,7 @@ import org.observability.otel.config.TestcontainersConfiguration;
 import org.observability.otel.domain.Customer;
 import org.observability.otel.domain.CustomerEntity;
 import org.observability.otel.domain.CustomerRepository;
+import org.observability.otel.rest.CustomerPageResponse;
 import org.observability.otel.domain.CustomerTestDataProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -407,6 +408,137 @@ class CustomerIntegrationTest {
     ResponseEntity<String> searchResponse = restTemplate.getForEntity(searchUrl, String.class);
 
     assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  @DisplayName("Should find customer by SSN after creation")
+  void shouldFindCustomerBySSN() throws Exception {
+    // Create a full customer that has an SSN document
+    Customer fullCustomer = CustomerTestDataProvider.createFullCustomer();
+    ResponseEntity<Customer> createResponse = restTemplate.postForEntity(baseUrl, fullCustomer, Customer.class);
+    assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    Customer createdCustomer = createResponse.getBody();
+    assertThat(createdCustomer).isNotNull();
+
+    // Extract the SSN from the created customer via JsonNode (Document is package-private)
+    com.fasterxml.jackson.databind.JsonNode customerNode = objectMapper.valueToTree(createdCustomer);
+    String ssn = StreamSupport.stream(customerNode.get("documents").spliterator(), false)
+        .filter(d -> "SSN".equals(d.get("type").asText()))
+        .map(d -> d.get("identifier").asText())
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("No SSN document found on created customer"));
+
+    // Search by SSN
+    String searchUrl = baseUrl + "/search?ssn=" + java.net.URLEncoder.encode(ssn, "UTF-8");
+    ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(searchUrl, Customer.class);
+
+    assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    Customer foundCustomer = searchResponse.getBody();
+    assertThat(foundCustomer).isNotNull();
+    assertThat(foundCustomer.id()).isEqualTo(createdCustomer.id());
+  }
+
+  @Test
+  @DisplayName("Should return 409 Conflict when creating a customer with an existing ID")
+  void shouldReturn409WhenCreatingDuplicateCustomer() {
+    // First creation
+    Customer basicCustomer = CustomerTestDataProvider.createBasicCustomer();
+    ResponseEntity<Customer> firstCreate = restTemplate.postForEntity(baseUrl, basicCustomer, Customer.class);
+    assertThat(firstCreate.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    Customer created = firstCreate.getBody();
+    assertThat(created).isNotNull();
+
+    // Second creation with the same ID — must be 409
+    ResponseEntity<String> secondCreate = restTemplate.postForEntity(baseUrl, created, String.class);
+
+    assertThat(secondCreate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(secondCreate.getBody()).contains("Customer Conflict");
+  }
+
+  @Test
+  @DisplayName("Should return paginated results and honour cursor across pages")
+  void shouldReturnPaginatedCustomers() {
+    // Create 3 customers to ensure we have enough data for two pages at limit=2
+    for (int i = 0; i < 3; i++) {
+      ResponseEntity<Customer> r = restTemplate.postForEntity(
+          baseUrl, CustomerTestDataProvider.createBasicCustomer(), Customer.class);
+      assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    // First page: limit=2
+    ResponseEntity<CustomerPageResponse> firstPageResp = restTemplate.getForEntity(
+        baseUrl + "?limit=2", CustomerPageResponse.class);
+    assertThat(firstPageResp.getStatusCode()).isEqualTo(HttpStatus.OK);
+    CustomerPageResponse page1 = firstPageResp.getBody();
+    assertThat(page1).isNotNull();
+    assertThat(page1.data()).hasSize(2);
+    assertThat(page1.hasMore()).isTrue();
+    assertThat(page1.nextCursor()).isNotNull();
+    assertThat(page1.limit()).isEqualTo(2);
+
+    // Second page: use cursor from first page
+    ResponseEntity<CustomerPageResponse> secondPageResp = restTemplate.getForEntity(
+        baseUrl + "?limit=2&after=" + page1.nextCursor(), CustomerPageResponse.class);
+    assertThat(secondPageResp.getStatusCode()).isEqualTo(HttpStatus.OK);
+    CustomerPageResponse page2 = secondPageResp.getBody();
+    assertThat(page2).isNotNull();
+    assertThat(page2.data()).isNotEmpty();
+
+    // No overlapping IDs between pages
+    List<Long> page1Ids = page1.data().stream().map(Customer::id).toList();
+    List<Long> page2Ids = page2.data().stream().map(Customer::id).toList();
+    assertThat(page2Ids).doesNotContainAnyElementsOf(page1Ids);
+
+    // All IDs on page 2 are greater than the cursor (keyset ordering)
+    page2Ids.forEach(id -> assertThat(id).isGreaterThan(page1.nextCursor()));
+  }
+
+  @Test
+  @DisplayName("Should PATCH customer firstName and verify Customer::updated Kafka event")
+  void shouldPatchCustomerAndVerifyKafkaEvent() throws Exception {
+    // Create a customer
+    Customer basicCustomer = CustomerTestDataProvider.createBasicCustomer();
+    ResponseEntity<Customer> createResponse = restTemplate.postForEntity(baseUrl, basicCustomer, Customer.class);
+    assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    Customer createdCustomer = createResponse.getBody();
+    assertThat(createdCustomer).isNotNull();
+    String originalLastName = createdCustomer.lastName();
+
+    // Drain the create event so it doesn't bleed into the update assertion
+    kafkaConsumer.poll(Duration.ofSeconds(10));
+
+    // PATCH only firstName
+    HttpHeaders patchHeaders = new HttpHeaders();
+    patchHeaders.setContentType(MediaType.parseMediaType("application/merge-patch+json"));
+    patchHeaders.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+    ResponseEntity<Customer> patchResponse = restTemplate.exchange(
+        baseUrl + "/" + createdCustomer.id(),
+        HttpMethod.PATCH,
+        new HttpEntity<>("{\"firstName\":\"PatchedKafka\"}", patchHeaders),
+        Customer.class);
+
+    assertThat(patchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    Customer patchedCustomer = patchResponse.getBody();
+    assertThat(patchedCustomer).isNotNull();
+    assertThat(patchedCustomer.firstName()).isEqualTo("PatchedKafka");
+    assertThat(patchedCustomer.lastName()).isEqualTo(originalLastName);
+
+    // Verify Customer::updated Kafka event
+    ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
+    List<ConsumerRecord<String, CloudEvent>> updateEvents = StreamSupport.stream(records.spliterator(), false)
+        .filter(r -> r.value().getType().equals("Customer::updated"))
+        .collect(Collectors.toList());
+
+    assertThat(updateEvents).hasSize(1);
+    CloudEvent event = updateEvents.get(0).value();
+    assertThat(event.getType()).isEqualTo("Customer::updated");
+    assertThat(event.getSource().toString()).isEqualTo("/customer/events");
+    assertThat(event.getSubject()).isEqualTo(patchedCustomer.id().toString());
+
+    Customer eventCustomer = objectMapper.readValue(new String(event.getData().toBytes()), Customer.class);
+    assertThat(eventCustomer.firstName()).isEqualTo("PatchedKafka");
+    assertThat(eventCustomer.lastName()).isEqualTo(originalLastName);
   }
 
   private void setupKafkaConsumer() {

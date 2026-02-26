@@ -582,4 +582,25 @@ class CustomerServiceUnitTest {
         .hasMessageContaining("Failed to apply patch");
   }
 
+  @Test
+  @DisplayName("patch() - saveAndFlush failure throws CustomerServiceException and no event published")
+  void shouldThrowServiceExceptionWhenPatchSaveFails() throws Exception {
+    // patch() calls findById() once, then update() which calls findById() a second time
+    CustomerEntity entity = new CustomerEntity();
+    entity.setId(basicCustomer.id());
+    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+
+    when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
+    when(customerRepository.existsById(basicCustomer.id())).thenReturn(true);
+    when(customerRepository.saveAndFlush(any(CustomerEntity.class)))
+        .thenThrow(new DataAccessException("DB write failure during patch") {});
+
+    assertThatThrownBy(() -> customerService.patch(basicCustomer.id(), "{\"firstName\":\"X\"}"))
+        .isInstanceOf(CustomerServiceException.class)
+        .hasMessageContaining("Error updating customer");
+
+    verify(customerRepository).saveAndFlush(any(CustomerEntity.class));
+    verifyNoInteractions(eventPublisher);
+  }
+
 }
