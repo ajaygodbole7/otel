@@ -1,18 +1,14 @@
 package org.observability.otel.unit;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -24,7 +20,6 @@ import org.observability.otel.exception.CustomerNotFoundException;
 import org.observability.otel.exception.CustomerServiceException;
 import org.observability.otel.exception.ServiceUnavailableException;
 import org.observability.otel.rest.ExceptionTranslator;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
@@ -34,14 +29,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-import org.springframework.validation.method.MethodValidationResult;
-import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
@@ -52,16 +44,13 @@ class ExceptionTranslatorUnitTest {
 
   @Mock private Environment env;
   @Mock private HttpServletRequest request;
-  @Mock private BindingResult bindingResult;
   @Mock private MethodParameter methodParameter;
 
   private ExceptionTranslator exceptionTranslator;
-  private Customer testCustomer;
 
   @BeforeEach
   void setUp() {
     exceptionTranslator = new ExceptionTranslator(env);
-    testCustomer = CustomerTestDataProvider.createBasicCustomer();
 
     // Complete request mock setup to avoid NPE
     when(request.getRemoteAddr()).thenReturn("127.0.0.1");
@@ -70,17 +59,18 @@ class ExceptionTranslatorUnitTest {
     when(request.getHeader("User-Agent")).thenReturn("TestAgent");
     when(request.getHeader("X-Request-Id")).thenReturn("test-123");
     when(request.getHeader("X-Forwarded-For")).thenReturn("");
-    lenient().when(request.getProtocol()).thenReturn("HTTP/1.1");
-    lenient().when(request.getScheme()).thenReturn("https");
-    lenient().when(request.isSecure()).thenReturn(true);
-
-
+    when(request.getProtocol()).thenReturn("HTTP/1.1");
+    when(request.getScheme()).thenReturn("https");
+    when(request.isSecure()).thenReturn(true);
   }
 
   // Custom Exception Tests
+
   @Test
+  @DisplayName("Should return 404 with Customer Not Found problem detail")
   void handleCustomerNotFound_ShouldReturn404() {
     // given
+    Customer testCustomer = CustomerTestDataProvider.createBasicCustomer();
     CustomerNotFoundException ex = new CustomerNotFoundException("Customer " + testCustomer.id() + " not found");
 
     // when
@@ -94,6 +84,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 409 with Customer Conflict problem detail")
   void handleCustomerConflict_ShouldReturn409() {
     // given
     CustomerConflictException ex = new CustomerConflictException("Customer already exists");
@@ -108,6 +99,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 503 with Service Unavailable problem detail")
   void handleServiceUnavailable_ShouldReturn503() {
     // given
     ServiceUnavailableException ex = new ServiceUnavailableException("Service is down");
@@ -122,6 +114,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 500 with Internal Error problem detail")
   void handleCustomerServiceException_ShouldReturn500() {
     // given
     CustomerServiceException ex = new CustomerServiceException("Internal error");
@@ -136,18 +129,19 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 400 with Validation Error and field details")
   void handleMethodArgumentNotValid_ShouldReturn400() {
     // given
-    Method dummyMethod = ExceptionTranslator.class.getDeclaredMethods()[0]; // get any method from the class
-    lenient().when(methodParameter.getParameterType()).thenReturn((Class) Customer.class);
-    lenient().when(methodParameter.getExecutable()).thenReturn(dummyMethod);
-    lenient().when(methodParameter.getParameterName()).thenReturn("customer");
+    Method dummyMethod = ExceptionTranslator.class.getDeclaredMethods()[0];
+    when(methodParameter.getExecutable()).thenReturn(dummyMethod);
 
+    BindingResult bindingResult = mock(BindingResult.class);
     FieldError fieldError = new FieldError(
         "customer", "type", null, false,
         new String[]{"NotNull"}, null, "Type is required"
     );
-    lenient().when(bindingResult.getFieldErrors()).thenReturn(List.of(fieldError));
+    when(bindingResult.getFieldErrors()).thenReturn(List.of(fieldError));
+
     MethodArgumentNotValidException ex = new MethodArgumentNotValidException(methodParameter, bindingResult);
 
     // when
@@ -160,7 +154,9 @@ class ExceptionTranslatorUnitTest {
   }
 
   // Spring Framework Exception Tests
+
   @Test
+  @DisplayName("Should return 415 when Content-Type is not supported")
   void handleHttpMediaTypeNotSupported_ShouldReturn415() {
     // given
     HttpMediaTypeNotSupportedException ex = new HttpMediaTypeNotSupportedException(
@@ -178,6 +174,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 406 when Accept header cannot be satisfied")
   void handleHttpMediaTypeNotAcceptable_ShouldReturn406() {
     // given
     HttpMediaTypeNotAcceptableException ex = new HttpMediaTypeNotAcceptableException(
@@ -194,6 +191,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 405 when HTTP method is not supported")
   void handleHttpRequestMethodNotSupported_ShouldReturn405() {
     // given
     HttpRequestMethodNotSupportedException ex = new HttpRequestMethodNotSupportedException(
@@ -211,6 +209,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 400 with parameter details when required parameter is missing")
   void handleMissingServletRequestParameter_ShouldReturn400() {
     // given
     MissingServletRequestParameterException ex = new MissingServletRequestParameterException(
@@ -230,6 +229,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 400 with type details when path variable type is invalid")
   void handleMethodArgumentTypeMismatch_ShouldReturn400() {
     // given
     MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
@@ -252,6 +252,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 400 with Malformed JSON problem detail")
   void handleHttpMessageNotReadable_ShouldReturn400() {
     // given
     HttpMessageNotReadableException ex = new HttpMessageNotReadableException("Malformed JSON");
@@ -266,6 +267,7 @@ class ExceptionTranslatorUnitTest {
   }
 
   @Test
+  @DisplayName("Should return 500 for unexpected exceptions")
   void handleGenericException_ShouldReturn500() {
     // given
     Exception ex = new RuntimeException("Unexpected error");

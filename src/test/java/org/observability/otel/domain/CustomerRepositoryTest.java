@@ -48,8 +48,8 @@ class CustomerRepositoryTest {
     objectMapper.registerModule(new JavaTimeModule());
   }
 
-
   @Test
+  @DisplayName("Should save and retrieve basic customer via JSONB round-trip")
   void shouldSaveAndRetrieveBasicCustomer() throws JsonProcessingException {
     // Given
     var customer = CustomerTestDataProvider.createBasicCustomer();
@@ -71,6 +71,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should save and retrieve full customer with all nested fields via JSONB round-trip")
   void shouldSaveAndRetrieveFullCustomer() throws JsonProcessingException {
     // Given
     var customer = CustomerTestDataProvider.createFullCustomer();
@@ -92,6 +93,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should persist updated customer JSON and reflect new field values")
   void shouldUpdateExistingCustomer() throws JsonProcessingException {
     // Given
     var originalCustomer = CustomerTestDataProvider.createBasicCustomer();
@@ -127,6 +129,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should return all saved customers")
   void shouldFindAllCustomers() throws JsonProcessingException {
     // Given: start from a known clean state so hasSize(2) is reliable
     customerRepository.deleteAll();
@@ -143,6 +146,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should find customer by email using JSONB path query")
   void shouldFindCustomerByEmail() throws JsonProcessingException {
     // Given
     var customer = CustomerTestDataProvider.createBasicCustomer();
@@ -162,6 +166,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should find customer by SSN using JSONB path query")
   void shouldFindCustomerBySSN() throws JsonProcessingException {
     // Given
     var customer = CustomerTestDataProvider.createFullCustomer();
@@ -194,6 +199,7 @@ class CustomerRepositoryTest {
 
 
   @Test
+  @DisplayName("Should delete customer and confirm absence")
   void shouldDeleteCustomer() throws JsonProcessingException {
     // Given
     var customer = CustomerTestDataProvider.createBasicCustomer();
@@ -212,6 +218,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should delete all customers and return empty result set")
   void shouldDeleteAllCustomers() throws JsonProcessingException {
     // Given
     var customer1 = convertToEntity(CustomerTestDataProvider.createBasicCustomer());
@@ -228,6 +235,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should not throw when deleting a non-existent ID")
   void shouldHandleDeleteByNonExistentId() {
     // When
     customerRepository.deleteById(99999L); // Non-existent ID
@@ -238,6 +246,7 @@ class CustomerRepositoryTest {
   }
 
   @Test
+  @DisplayName("Should delete customer without explicit flush and confirm absence")
   void shouldDeleteCustomerWithoutFlushing() throws JsonProcessingException {
     // Given
     var customer = convertToEntity(CustomerTestDataProvider.createBasicCustomer());

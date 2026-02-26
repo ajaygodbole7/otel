@@ -3,13 +3,10 @@ package org.observability.otel.unit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
-import static org.mockito.ArgumentMatchers.any; // Correct import for Mockito matchers
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -35,7 +32,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.observability.otel.domain.Customer;
@@ -49,10 +45,13 @@ import org.springframework.kafka.support.SendResult;
 class CustomerEventPublisherUnitTest {
 
   private static final String TOPIC = "customer-events";
+
   @Mock
   private KafkaTemplate<String, CloudEvent> kafkaTemplate;
+
   private ObjectMapper objectMapper;
   private CustomerEventPublisher eventPublisher;
+
   // Test data
   private Customer basicCustomer;
   private Customer fullCustomer;
@@ -67,11 +66,9 @@ class CustomerEventPublisherUnitTest {
         .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
     basicCustomer = CustomerTestDataProvider.createBasicCustomer();
     fullCustomer = CustomerTestDataProvider.createFullCustomer();
-    updatedCustomer =
-        CustomerTestDataProvider.createUpdateCustomer(
-            basicCustomer.id(), basicCustomer.createdAt());
+    updatedCustomer = CustomerTestDataProvider.createUpdateCustomer(
+        basicCustomer.id(), basicCustomer.createdAt());
 
-    // Manually create the service with all dependencies
     eventPublisher = new CustomerEventPublisher(kafkaTemplate, objectMapper);
   }
 
@@ -79,24 +76,21 @@ class CustomerEventPublisherUnitTest {
   private SendResult<String, CloudEvent> createMockSendResult(int partition, long offset) {
     RecordMetadata metadata = new RecordMetadata(
         new TopicPartition(TOPIC, partition),
-        offset,
-        0,
-        0L,
-        0,
-        0
+        offset, 0, 0L, 0, 0
     );
     return new SendResult<>(null, metadata);
   }
+
   @Test
-  @DisplayName("Should handle null KafkaTemplate response gracefully")
-  void shouldHandleNullKafkaResponseGracefully() {
-    when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(null);
+  @DisplayName("Should throw CustomerServiceException when KafkaTemplate.send returns null")
+  void shouldThrowWhenKafkaSendReturnsNull() {
+    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class))).thenReturn(null);
 
     assertThatThrownBy(() -> eventPublisher.publishCustomerCreated(basicCustomer))
         .isInstanceOf(CustomerServiceException.class)
         .hasMessageContaining("Failed to publish event");
 
-    verify(kafkaTemplate, times(1)).send(anyString(), anyString(), any());
+    verify(kafkaTemplate).send(anyString(), anyString(), any(CloudEvent.class));
   }
 
   @Test
@@ -165,8 +159,7 @@ class CustomerEventPublisherUnitTest {
   void shouldHandleKafkaSendFailure() {
     // Given
     var failedFuture = CompletableFuture.<SendResult<String, CloudEvent>>failedFuture(
-        new RuntimeException("Kafka send failed")
-                                                                                     );
+        new RuntimeException("Kafka send failed"));
     when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
         .thenReturn(failedFuture);
 
@@ -179,7 +172,6 @@ class CustomerEventPublisherUnitTest {
         .hasCauseInstanceOf(RuntimeException.class)
         .hasRootCauseMessage("Kafka send failed");
 
-    // Verify Kafka interaction
     verify(kafkaTemplate).send(eq(TOPIC), anyString(), any(CloudEvent.class));
   }
 
@@ -189,7 +181,6 @@ class CustomerEventPublisherUnitTest {
     // Given
     ObjectMapper mockMapper = mock(ObjectMapper.class);
     CustomerEventPublisher publisherWithMockMapper = new CustomerEventPublisher(kafkaTemplate, mockMapper);
-
     when(mockMapper.valueToTree(any()))
         .thenThrow(new IllegalArgumentException("Serialization failed"));
 
@@ -210,7 +201,7 @@ class CustomerEventPublisherUnitTest {
   }
 
   @Test
-  @DisplayName("Should handle null customer ID gracefully")
+  @DisplayName("Should throw IllegalArgumentException when customer ID is null")
   void shouldHandleNullCustomerId() {
     // Given
     Customer customerWithNullId = Customer.builder()
@@ -229,130 +220,8 @@ class CustomerEventPublisherUnitTest {
   }
 
   @Test
-  @DisplayName("Should verify CloudEvent structure")
-  void shouldVerifyCloudEventStructure() {
-    // Given
-    SendResult<String, CloudEvent> sendResult = createMockSendResult(0, 1L);
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(CompletableFuture.completedFuture(sendResult));
-
-    // When
-    eventPublisher.publishCustomerCreated(basicCustomer);
-
-    // Then
-    ArgumentCaptor<CloudEvent> eventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), eventCaptor.capture());
-
-    CloudEvent capturedEvent = eventCaptor.getValue();
-    assertThat(capturedEvent.getId()).isNotNull();
-    assertThat(capturedEvent.getSource().toString()).isEqualTo("/customer/events");
-    assertThat(capturedEvent.getType()).isEqualTo("Customer::created");
-    assertThat(capturedEvent.getTime()).isNotNull();
-    assertThat(capturedEvent.getSubject()).isEqualTo(basicCustomer.id().toString());
-    assertThat(capturedEvent.getDataContentType()).isEqualTo("application/json");
-    assertThat(capturedEvent.getData()).isNotNull();
-  }
-
-  @Test
-  @DisplayName("Should handle Kafka template returning null CompletableFuture")
-  void shouldHandleNullCompletableFuture() {
-    // Given
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(null);
-
-    // When/Then
-    assertThatThrownBy(() -> eventPublisher.publishCustomerCreated(basicCustomer))
-        .isInstanceOf(CustomerServiceException.class)
-        .hasMessageContaining("Failed to publish event");
-  }
-
-  @Test
-  @DisplayName("Should handle Kafka send timeout gracefully")
-  void shouldHandleKafkaSendTimeoutGracefully() {
-    CompletableFuture<SendResult<String, CloudEvent>> timeoutFuture = new CompletableFuture<>();
-    timeoutFuture.completeExceptionally(new java.util.concurrent.TimeoutException("Kafka timeout"));
-
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(timeoutFuture);
-
-    assertThatThrownBy(() -> {
-      eventPublisher.publishCustomerCreated(basicCustomer);
-      timeoutFuture.join(); // Force completion of the CompletableFuture
-    })
-        .isInstanceOf(CompletionException.class)
-        .hasCauseInstanceOf(TimeoutException.class)
-        .hasRootCauseMessage("Kafka timeout");
-
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), any(CloudEvent.class));
-  }
-
-  @Test
-  @DisplayName("Should match CloudEvent data with original customer")
-  void shouldMatchCloudEventDataWithOriginalCustomer() {
-    // Given
-    SendResult<String, CloudEvent> sendResult = createMockSendResult(0, 1L);
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(CompletableFuture.completedFuture(sendResult));
-
-    // When
-    eventPublisher.publishCustomerCreated(basicCustomer);
-
-    // Then
-    ArgumentCaptor<CloudEvent> eventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), eventCaptor.capture());
-
-    CloudEvent capturedEvent = eventCaptor.getValue();
-    JsonNode eventData = ((JsonCloudEventData) capturedEvent.getData()).getNode();
-
-    assertThat(eventData.get("id").asLong()).isEqualTo(basicCustomer.id());
-    assertThat(eventData.get("firstName").asText()).isEqualTo(basicCustomer.firstName());
-    assertThat(eventData.get("lastName").asText()).isEqualTo(basicCustomer.lastName());
-    assertThat(eventData.get("type").asText()).isEqualTo(basicCustomer.type());
-  }
-
-  @Test
-  @DisplayName("Should handle different customer data sizes")
-  void shouldHandleDifferentCustomerDataSizes() throws JsonProcessingException {
-    // Given
-    SendResult<String, CloudEvent> sendResult = createMockSendResult(0, 1L);
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(CompletableFuture.completedFuture(sendResult));
-
-    // When & Then - Test with basic customer
-    eventPublisher.publishCustomerCreated(basicCustomer);
-    ArgumentCaptor<CloudEvent> basicEventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), basicEventCaptor.capture());
-    CloudEvent basicEvent = basicEventCaptor.getValue();
-
-    // Reset mock for full customer test
-    reset(kafkaTemplate);
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(CompletableFuture.completedFuture(sendResult));
-
-    // Test with full customer
-    eventPublisher.publishCustomerCreated(fullCustomer);
-    ArgumentCaptor<CloudEvent> fullEventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), fullEventCaptor.capture());
-    CloudEvent fullEvent = fullEventCaptor.getValue();
-
-    // Convert CloudEvent data back to Customer objects
-    Customer capturedBasicCustomer = objectMapper.treeToValue(
-        ((JsonCloudEventData) basicEvent.getData()).getNode(), Customer.class);
-    Customer capturedFullCustomer = objectMapper.treeToValue(
-        ((JsonCloudEventData) fullEvent.getData()).getNode(), Customer.class);
-
-    // Verify both events contain the correct customer data
-    assertThat(capturedBasicCustomer)
-        .usingRecursiveComparison()
-        .isEqualTo(basicCustomer);
-
-    assertThat(capturedFullCustomer)
-        .usingRecursiveComparison()
-        .isEqualTo(fullCustomer);
-  }
-  @Test
   @DisplayName("Should set all CloudEvent attributes correctly")
-  void shouldSetAllCloudEventAttributesCorrectly() {
+  void shouldVerifyAllCloudEventAttributes() {
     // Given
     SendResult<String, CloudEvent> sendResult = createMockSendResult(0, 1L);
     when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
@@ -372,11 +241,73 @@ class CustomerEventPublisherUnitTest {
     assertThat(capturedEvent.getType()).isEqualTo("Customer::created");
     assertThat(capturedEvent.getSubject()).isEqualTo(basicCustomer.id().toString());
     assertThat(capturedEvent.getDataContentType()).isEqualTo("application/json");
-    assertThat(capturedEvent.getTime()).isNotNull();
-
-    // Verify time is within the last minute
+    assertThat(capturedEvent.getData()).isNotNull();
     assertThat(capturedEvent.getTime())
+        .isNotNull()
         .isCloseTo(OffsetDateTime.now(ZoneOffset.UTC), within(1, ChronoUnit.MINUTES));
   }
 
+  @Test
+  @DisplayName("Should handle Kafka send timeout gracefully")
+  void shouldHandleKafkaSendTimeoutGracefully() {
+    CompletableFuture<SendResult<String, CloudEvent>> timeoutFuture = new CompletableFuture<>();
+    timeoutFuture.completeExceptionally(new TimeoutException("Kafka timeout"));
+
+    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
+        .thenReturn(timeoutFuture);
+
+    assertThatThrownBy(() -> {
+      eventPublisher.publishCustomerCreated(basicCustomer);
+      timeoutFuture.join(); // Force completion of the CompletableFuture
+    })
+        .isInstanceOf(CompletionException.class)
+        .hasCauseInstanceOf(TimeoutException.class)
+        .hasRootCauseMessage("Kafka timeout");
+
+    verify(kafkaTemplate).send(eq(TOPIC), anyString(), any(CloudEvent.class));
+  }
+
+  @Test
+  @DisplayName("Should embed customer data fields correctly in CloudEvent payload")
+  void shouldMatchCloudEventDataWithOriginalCustomer() {
+    // Given
+    SendResult<String, CloudEvent> sendResult = createMockSendResult(0, 1L);
+    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
+        .thenReturn(CompletableFuture.completedFuture(sendResult));
+
+    // When
+    eventPublisher.publishCustomerCreated(basicCustomer);
+
+    // Then
+    ArgumentCaptor<CloudEvent> eventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
+    verify(kafkaTemplate).send(eq(TOPIC), anyString(), eventCaptor.capture());
+
+    JsonNode eventData = ((JsonCloudEventData) eventCaptor.getValue().getData()).getNode();
+    assertThat(eventData.get("id").asLong()).isEqualTo(basicCustomer.id());
+    assertThat(eventData.get("firstName").asText()).isEqualTo(basicCustomer.firstName());
+    assertThat(eventData.get("lastName").asText()).isEqualTo(basicCustomer.lastName());
+    assertThat(eventData.get("type").asText()).isEqualTo(basicCustomer.type());
+  }
+
+  @Test
+  @DisplayName("Should serialize full customer with all nested data correctly into CloudEvent")
+  void shouldSerializeFullCustomerDataCorrectlyInEvent() throws JsonProcessingException {
+    // Given
+    SendResult<String, CloudEvent> sendResult = createMockSendResult(0, 1L);
+    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
+        .thenReturn(CompletableFuture.completedFuture(sendResult));
+
+    // When
+    eventPublisher.publishCustomerCreated(fullCustomer);
+
+    // Then
+    ArgumentCaptor<CloudEvent> eventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
+    verify(kafkaTemplate).send(eq(TOPIC), anyString(), eventCaptor.capture());
+
+    Customer captured = objectMapper.treeToValue(
+        ((JsonCloudEventData) eventCaptor.getValue().getData()).getNode(), Customer.class);
+    assertThat(captured)
+        .usingRecursiveComparison()
+        .isEqualTo(fullCustomer);
+  }
 }
