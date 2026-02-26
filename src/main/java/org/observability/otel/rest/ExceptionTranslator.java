@@ -162,12 +162,12 @@ public class ExceptionTranslator {
         HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", ex, request);
   }
 
-  /** Handles unsupported content types (e.g., XML when JSON is expected). */
+  /** Handles requests where the server cannot produce a response matching the client's Accept header. */
   @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
   public ResponseEntity<ProblemDetail> handleMediaTypeNotAccepted(
       HttpMediaTypeNotAcceptableException ex, HttpServletRequest request) {
     return buildErrorResponse(
-        HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", ex, request);
+        HttpStatus.NOT_ACCEPTABLE, "NOT_ACCEPTABLE", ex, request);
   }
 
   /** Handles missing required request parameters and specifies which parameter was missing. */

@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.observability.otel.config.UnitTestConfig;
@@ -314,32 +315,19 @@ class CustomerControllerUnitTest {
     verify(customerService, times(1)).create(any(Customer.class));
   }
 
-  /*
-   @Test
-   @DisplayName("Should reject update with invalid data")
-   void shouldRejectInvalidUpdate() throws Exception {
-     Customer invalidCustomer =
-         new Customer(
-             null,
-             "",
-             "",
-             null,
-             "",
-             null,
-             Collections.emptyList(),
-             Collections.emptyList(),
-             Collections.emptyList(),
-             Collections.emptyList(),
-             null,
-             null);
+  @Test
+  @DisplayName("Should reject update with invalid data (missing firstName)")
+  void shouldRejectInvalidUpdate() throws Exception {
+    Customer invalidCustomer =
+        CustomerTestDataProvider.createCustomerWithMissingFirstName(fullCustomer);
 
-     MvcResult result = performRequest(buildPutRequest(basicCustomer.id(), invalidCustomer));
+    MvcResult result = performRequest(buildPutRequest(basicCustomer.id(), invalidCustomer));
 
-     assertErrorResponse(
-         result, HttpStatus.BAD_REQUEST, "Method Validation Error", "Validation failure");
-   }
+    assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(result.getResponse().getContentAsString()).contains("firstName");
+  }
 
-  */
+
   @Test
   @DisplayName("Should reject update for non-existent customer")
   void shouldRejectUpdateForNonExistentCustomer() throws Exception {
@@ -414,6 +402,7 @@ class CustomerControllerUnitTest {
   }
 
   @Test
+  @Disabled("OTel span error marking deferred to Spring Boot 4 upgrade — markSpanError() is commented out in production")
   @DisplayName("Error response should include traceId and spanId")
   void errorResponseShouldIncludeTraceDetails() throws Exception {
     /*
@@ -447,12 +436,18 @@ class CustomerControllerUnitTest {
   }
 
   @Test
-  @DisplayName("Delete request should be idempotent")
-  void deleteShouldBeIdempotent() throws Exception {
-    doNothing().when(customerService).delete(anyLong());
-    performRequest(buildDeleteRequest(1L));
-    performRequest(buildDeleteRequest(1L)); // Deleting again
-    verify(customerService, times(2)).delete(1L);
+  @DisplayName("First delete returns 204; second delete on same ID returns 404")
+  void secondDeleteOfSameCustomerReturns404() throws Exception {
+    // First call succeeds, second call finds nothing to delete
+    doNothing()
+        .doThrow(new CustomerNotFoundException("Customer not found"))
+        .when(customerService).delete(1L);
+
+    MvcResult firstResult = performRequest(buildDeleteRequest(1L));
+    assertResponse(firstResult, HttpStatus.NO_CONTENT);
+
+    MvcResult secondResult = performRequest(buildDeleteRequest(1L));
+    assertErrorResponse(secondResult, HttpStatus.NOT_FOUND, "Customer Not Found", "Customer not found");
   }
 
   @Test
