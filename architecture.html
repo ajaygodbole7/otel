@@ -1082,42 +1082,141 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
         <div class="section-num blue">10</div>
         <div>
           <h2>Testing Strategy</h2>
-          <div class="section-sub">Four test categories from unit to integration</div>
+          <div class="section-sub">238 tests across 4 layers — real Kafka pub/sub, real PostgreSQL, strict Mockito conventions</div>
         </div>
       </div>
 
-      <div class="card-grid cols-2">
+      <div class="alert alert-success" style="margin-bottom:16px;">
+        <span>✅</span>
+        <span><strong>238 unit &amp; utility tests pass without Docker</strong> in under 3 s. Integration and repository tests add 27 more when Docker is available — spinning up real PostgreSQL and Kafka containers via Testcontainers.</span>
+      </div>
+
+      <div class="card-grid cols-2" style="margin-bottom:16px;">
+
         <div class="card" style="border-top:3px solid #2563eb;">
-          <h3>Unit Tests</h3>
-          <p>Mock-based tests for Controller, Service, EventPublisher, and ExceptionTranslator. Written with <strong>JUnit 5</strong> (<code>@ExtendWith(MockitoExtension.class)</code>), <strong>Mockito</strong> for stubbing, and <strong>AssertJ</strong> fluent assertions (<code>assertThat(...).isEqualTo(...)</code>). Fast, no I/O. <code>UnitTestConfig</code> wires mock beans.</p>
+          <h3>Unit Tests — 94 tests</h3>
+          <p>Mock-based, zero I/O. <code>@ExtendWith(MockitoExtension.class)</code> strict mode — unused stubs fail the test. Four classes:</p>
+          <ul>
+            <li><code>CustomerServiceUnitTest</code> — 30 tests: create, read, update, delete, patch, search by email/SSN, and every error path</li>
+            <li><code>CustomerControllerUnitTest</code> — 40 tests: HTTP status, response body, validation rejection, pagination, search via MockMvc</li>
+            <li><code>CustomerEventPublisherUnitTest</code> — 12 tests: CloudEvent field values, JSON serialization, Kafka send failure and timeout paths</li>
+            <li><code>ExceptionTranslatorUnitTest</code> — 12 tests: every RFC 7807 handler mapping, 4xx and 5xx</li>
+          </ul>
         </div>
+
         <div class="card" style="border-top:3px solid #7c3aed;">
-          <h3>Integration Tests</h3>
-          <p><code>@SpringBootTest</code> with real PostgreSQL + Kafka via Testcontainers. <code>TestOtelApplication</code> is the entry point.</p>
+          <h3>Integration Tests — 13 tests</h3>
+          <p><code>@SpringBootTest(RANDOM_PORT)</code> — real HTTP via <code>TestRestTemplate</code>, real PostgreSQL, real Kafka container. Each test verifies three things end-to-end:</p>
+          <ul>
+            <li><strong>① HTTP response</strong> — status code and body from the running server</li>
+            <li><strong>② Database state</strong> — <code>await().untilAsserted()</code> reads the JSONB row and compares with <code>usingRecursiveComparison()</code></li>
+            <li><strong>③ Kafka event</strong> — a real <code>KafkaConsumer</code> polls the <code>customer-events</code> topic and asserts the <code>CloudEvent</code> type, subject, and full customer payload</li>
+          </ul>
+          <p style="margin-top:6px;">Scenarios: POST/PUT/DELETE with event verification, PATCH with GET confirmation, search by email and SSN, 409 conflict, keyset pagination cursor.</p>
         </div>
+
         <div class="card" style="border-top:3px solid #ea580c;">
-          <h3>Domain Tests</h3>
-          <p>Repository-level tests against a real PostgreSQL container. Validates JSONB storage, TSID generation, and Flyway migrations in isolation.</p>
+          <h3>Repository Tests — 13 tests</h3>
+          <p><code>@DataJpaTest</code> against a dedicated PostgreSQL container — validates the persistence layer in complete isolation from the service:</p>
+          <ul>
+            <li>JSONB round-trip: save <code>Customer</code> as JSON, read back, compare with <code>usingRecursiveComparison()</code></li>
+            <li><code>findByEmail</code> and <code>findBySSN</code> — JSONB path queries exercising the GIN index</li>
+            <li><code>findNextPage(cursor, limit)</code> — three keyset pagination cases: first page, next-page-after-cursor, empty-past-end</li>
+            <li>Delete, delete-all, delete-without-flush, delete-non-existent edge cases</li>
+          </ul>
         </div>
+
         <div class="card" style="border-top:3px solid #16a34a;">
-          <h3>Utility Tests</h3>
-          <p>JsonUtils split across 5 focused test classes: File, ToJson, FromJson, ExtractValue, IsJson. <code>Faker</code> generates realistic test data.</p>
+          <h3>Utility Tests — 144 tests</h3>
+          <p>Six focused classes, no Spring context or Docker needed. <code>@ParameterizedTest</code> and <code>@NullAndEmptySource</code> cover boundary inputs:</p>
+          <ul>
+            <li><code>JsonUtilsIsJsonTest</code> — 59 tests: lenient and strict validation, parameterised valid/invalid inputs, oversized JSON</li>
+            <li><code>JsonUtilsToJsonTest</code> — 23 tests: <code>toJson</code>, <code>toStrictJson</code>, pretty-print, number formats, circular reference</li>
+            <li><code>ValidCurrencyTest</code> — 21 tests: ISO 4217 annotation, case/whitespace tolerance, invalid codes via <code>@ParameterizedTest</code></li>
+            <li><code>JsonUtilsFileTest</code> — 14 tests: read/write files, <code>@TempDir</code>, permission-denied handling</li>
+            <li><code>JsonUtilsExtractValueTest</code> — 18 tests: JSONPath extraction, null path, malformed path</li>
+            <li><code>JsonUtilsFromJsonTest</code> — 9 tests: <code>fromJson</code> to <code>JsonNode</code>, typed class, <code>TypeReference</code></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- Integration test: the Kafka verification pattern -->
+      <div class="code-wrap" style="margin-bottom:16px;">
+        <div class="code-header">
+          <span class="lang-label">Java</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code"><span class="c">// Integration test — one test verifies HTTP + DB + Kafka in sequence</span>
+<span class="p">@Test</span>
+<span class="k">void</span> <span class="fn">shouldCreateCustomer</span>() <span class="k">throws</span> <span class="cl">Exception</span> {
+
+  <span class="c">// ① Assert HTTP response from the running server</span>
+  <span class="cl">ResponseEntity</span>&lt;<span class="cl">Customer</span>&gt; resp = restTemplate.<span class="fn">postForEntity</span>(baseUrl, customer, <span class="cl">Customer</span>.<span class="k">class</span>);
+  <span class="fn">assertThat</span>(resp.<span class="fn">getStatusCode</span>()).<span class="fn">isEqualTo</span>(<span class="cl">HttpStatus</span>.CREATED);
+  <span class="cl">Customer</span> created = resp.<span class="fn">getBody</span>();
+
+  <span class="c">// ② Assert database state — await() handles async persistence</span>
+  <span class="fn">await</span>().<span class="fn">atMost</span>(<span class="n">5</span>, SECONDS).<span class="fn">untilAsserted</span>(() -&gt; {
+    <span class="cl">Customer</span> stored = objectMapper.<span class="fn">readValue</span>(
+        customerRepository.<span class="fn">findById</span>(created.<span class="fn">id</span>()).<span class="fn">get</span>().<span class="fn">getCustomerJson</span>(), <span class="cl">Customer</span>.<span class="k">class</span>);
+    <span class="fn">assertThat</span>(stored).<span class="fn">usingRecursiveComparison</span>()
+        .<span class="fn">ignoringFields</span>(<span class="s">"createdAt"</span>, <span class="s">"updatedAt"</span>).<span class="fn">isEqualTo</span>(created);
+  });
+
+  <span class="c">// ③ Subscribe to Kafka and assert the published CloudEvent</span>
+  <span class="cl">ConsumerRecords</span>&lt;<span class="cl">String</span>, <span class="cl">CloudEvent</span>&gt; records = kafkaConsumer.<span class="fn">poll</span>(<span class="cl">Duration</span>.<span class="fn">ofSeconds</span>(<span class="n">10</span>));
+  <span class="cl">List</span>&lt;<span class="cl">ConsumerRecord</span>&lt;...&gt;&gt; events = <span class="fn">filterEventsByType</span>(records, <span class="s">"Customer::created"</span>);
+  <span class="fn">assertThat</span>(events).<span class="fn">hasSize</span>(<span class="n">1</span>);
+
+  <span class="cl">CloudEvent</span> event = events.<span class="fn">get</span>(<span class="n">0</span>).<span class="fn">value</span>();
+  <span class="fn">assertThat</span>(event.<span class="fn">getType</span>()).<span class="fn">isEqualTo</span>(<span class="s">"Customer::created"</span>);
+  <span class="fn">assertThat</span>(event.<span class="fn">getSubject</span>()).<span class="fn">isEqualTo</span>(created.<span class="fn">id</span>().<span class="fn">toString</span>());
+
+  <span class="c">// Deserialise the CloudEvent payload and compare to the HTTP response body</span>
+  <span class="cl">Customer</span> payload = objectMapper.<span class="fn">readValue</span>(
+      <span class="k">new</span> <span class="cl">String</span>(event.<span class="fn">getData</span>().<span class="fn">toBytes</span>()), <span class="cl">Customer</span>.<span class="k">class</span>);
+  <span class="fn">assertThat</span>(payload).<span class="fn">usingRecursiveComparison</span>()
+      .<span class="fn">ignoringFields</span>(<span class="s">"updatedAt"</span>).<span class="fn">isEqualTo</span>(created);
+}</div>
+      </div>
+
+      <!-- Conventions -->
+      <div class="card" style="border-top:3px solid #0d9488; margin-bottom:16px;">
+        <h3>Test Conventions — applied consistently across all 13 test files</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px; margin-top:6px;">
+          <ul>
+            <li><code>@DisplayName</code> on every class and every test method</li>
+            <li><code>shouldXxx</code> naming — no <code>testXxx</code> legacy style</li>
+            <li>Strict Mockito — no <code>lenient()</code>, no unused stubs</li>
+            <li>No <code>times(1)</code> in <code>verify()</code> — it is the default</li>
+          </ul>
+          <ul>
+            <li>Explicit Mockito imports — no wildcard <code>Mockito.*</code></li>
+            <li>No <code>reset()</code> mid-test — split into independent methods</li>
+            <li>Controller tests use <code>performRequest(buildXxx())</code> helpers</li>
+            <li>Lombok <code>@Data</code> for test POJOs, not hand-rolled <code>equals</code></li>
+          </ul>
         </div>
       </div>
 
-      <div class="code-wrap" style="margin-top:16px;">
+      <!-- Shell commands -->
+      <div class="code-wrap">
         <div class="code-header">
           <span class="lang-label sh">Shell</span>
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         </div>
-        <div class="code"><span class="c"># Run all tests</span>
-<span class="cmd">mvn test</span>
+        <div class="code"><span class="c"># Unit + utility tests only — no Docker needed (238 tests)</span>
+<span class="cmd">JAVA_HOME</span>=<span class="fn">$(/usr/libexec/java_home -v 21)</span> <span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=<span class="s">"CustomerServiceUnitTest,CustomerControllerUnitTest,CustomerEventPublisherUnitTest,ExceptionTranslatorUnitTest,JsonUtils*,ValidCurrencyTest"</span>
 
-<span class="c"># Run a single test class</span>
-<span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=CustomerServiceUnitTest
+<span class="c"># All tests including Testcontainers (requires Docker)</span>
+<span class="cmd">JAVA_HOME</span>=<span class="fn">$(/usr/libexec/java_home -v 21)</span> <span class="cmd">mvn test</span>
 
-<span class="c"># Run a single test method</span>
-<span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=CustomerServiceUnitTest<span class="s">#shouldCreateCustomer</span></div>
+<span class="c"># Single test class</span>
+<span class="cmd">JAVA_HOME</span>=<span class="fn">$(/usr/libexec/java_home -v 21)</span> <span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=CustomerIntegrationTest
+
+<span class="c"># Single test method</span>
+<span class="cmd">JAVA_HOME</span>=<span class="fn">$(/usr/libexec/java_home -v 21)</span> <span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=<span class="s">CustomerIntegrationTest#shouldCreateCustomer</span></div>
       </div>
     </div>
 
