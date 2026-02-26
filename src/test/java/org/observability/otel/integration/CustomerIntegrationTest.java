@@ -8,6 +8,7 @@ import static org.observability.otel.rest.ApiConstants.ApiPath.CUSTOMERS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.kafka.CloudEventDeserializer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,13 +16,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -85,7 +86,6 @@ class CustomerIntegrationTest {
   @Autowired
   private CustomerRepository customerRepository;
 
-
   private KafkaConsumer<String, CloudEvent> kafkaConsumer;
   private String baseUrl;
 
@@ -95,6 +95,13 @@ class CustomerIntegrationTest {
     baseUrl = String.format("http://localhost:%d%s", port, BASE_V1_API_PATH + CUSTOMERS);
   }
 
+  @AfterEach
+  void tearDown() {
+    if (kafkaConsumer != null) {
+      kafkaConsumer.close();
+    }
+  }
+
   @Test
   @DisplayName("Should create customer and verify Kafka event")
   void shouldCreateCustomer() throws Exception {
@@ -102,7 +109,7 @@ class CustomerIntegrationTest {
     Customer basicCustomer = CustomerTestDataProvider.createBasicCustomer();
     log.info("Creating customer: {}", basicCustomer);
 
-    ResponseEntity<Customer> createResponse = restTemplate.postForEntity(baseUrl,basicCustomer,Customer.class);
+    ResponseEntity<Customer> createResponse = restTemplate.postForEntity(baseUrl, basicCustomer, Customer.class);
 
     assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     Customer createdCustomer = createResponse.getBody();
@@ -118,11 +125,8 @@ class CustomerIntegrationTest {
           Optional<CustomerEntity> savedEntity = customerRepository.findById(createdCustomer.id());
           assertThat(savedEntity).isPresent();
 
-          // Verify stored JSON contains correct data
           Customer storedCustomer = objectMapper.readValue(
-              savedEntity.get().getCustomerJson(),
-              Customer.class
-                                                          );
+              savedEntity.get().getCustomerJson(), Customer.class);
           assertThat(storedCustomer)
               .usingRecursiveComparison()
               .ignoringFields("createdAt", "updatedAt")
@@ -131,33 +135,25 @@ class CustomerIntegrationTest {
 
     // Verify Kafka event
     ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> createEvents = StreamSupport.stream(records.spliterator(), false)
-        .filter(record -> record.value().getType().equals("Customer::created"))
-        .collect(Collectors.toList());
+    List<ConsumerRecord<String, CloudEvent>> createEvents = filterEventsByType(records, "Customer::created");
 
     assertThat(createEvents).hasSize(1);
 
-    ConsumerRecord<String, CloudEvent> eventRecord = createEvents.get(0);
-    CloudEvent event = eventRecord.value();
+    CloudEvent event = createEvents.get(0).value();
     log.info("Create event received: {}", event);
 
-    // Verify CloudEvent metadata
     assertThat(event.getType()).isEqualTo("Customer::created");
     assertThat(event.getSource().toString()).isEqualTo("/customer/events");
     assertThat(event.getSubject()).isEqualTo(createdCustomer.id().toString());
 
-    // Deserialize event data to Customer
     Customer eventCustomer = objectMapper.readValue(
-        new String((event.getData()).toBytes()),
-        Customer.class);
+        new String(event.getData().toBytes()), Customer.class);
     log.info("Deserialized Cloud event: {}", eventCustomer);
-    // Verify customer data in event
     assertThat(eventCustomer)
         .usingRecursiveComparison()
         .ignoringFields("updatedAt")
         .isEqualTo(createdCustomer);
   }
-
 
   @Test
   @DisplayName("Should create and update customer with Kafka events")
@@ -165,7 +161,7 @@ class CustomerIntegrationTest {
     // Create a customer
     Customer basicCustomer = CustomerTestDataProvider.createBasicCustomer();
     ResponseEntity<Customer> createResponse = restTemplate.postForEntity(
-        baseUrl,basicCustomer,Customer.class);
+        baseUrl, basicCustomer, Customer.class);
 
     assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     Customer createdCustomer = createResponse.getBody();
@@ -175,15 +171,13 @@ class CustomerIntegrationTest {
     kafkaConsumer.poll(Duration.ofSeconds(10));
 
     // Update the customer
-    // Create update request using the response from create
     Customer customerToUpdate = Customer.builder()
         .id(createdCustomer.id())
         .type(createdCustomer.type())
         .firstName("Updated First Name")
         .lastName("Updated Last Name")
         .emails(createdCustomer.emails())
-        .createdAt(createdCustomer.createdAt())  // Important: Keep the same createdAt
-        // .updatedAt(Instant.now()) - let the service handle the updatedAt
+        .createdAt(createdCustomer.createdAt())
         .build();
 
     log.info("Updating customer: {}", customerToUpdate);
@@ -195,8 +189,7 @@ class CustomerIntegrationTest {
         Customer.class);
 
     log.info("Update invocation status: {} and body: {}",
-             updateResponse.getStatusCode(),
-             updateResponse.getBody());
+        updateResponse.getStatusCode(), updateResponse.getBody());
     assertThat(updateResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     Customer updatedCustomer = updateResponse.getBody();
     assertThat(updatedCustomer).isNotNull();
@@ -208,43 +201,31 @@ class CustomerIntegrationTest {
           Optional<CustomerEntity> entity = customerRepository.findById(updatedCustomer.id());
           assertThat(entity).isPresent();
           Customer savedCustomer = objectMapper.readValue(
-              entity.get().getCustomerJson(),
-              Customer.class
-                                                         );
+              entity.get().getCustomerJson(), Customer.class);
           log.info("Saved customer: {}", savedCustomer);
           assertThat(savedCustomer.firstName()).isEqualTo("Updated First Name");
           assertThat(savedCustomer.lastName()).isEqualTo("Updated Last Name");
-          // Verify all other fields remained unchanged
           assertThat(savedCustomer)
               .usingRecursiveComparison()
-              .ignoringFields("firstName", "lastName","createdAt", "updatedAt")
+              .ignoringFields("firstName", "lastName", "createdAt", "updatedAt")
               .isEqualTo(createdCustomer);
         });
 
     // Verify Kafka event
     ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> updateEvents = StreamSupport.stream(records.spliterator(), false)
-        .filter(record -> record.value().getType().equals("Customer::updated"))
-        .collect(Collectors.toList());
+    List<ConsumerRecord<String, CloudEvent>> updateEvents = filterEventsByType(records, "Customer::updated");
 
     assertThat(updateEvents).hasSize(1);
 
-    ConsumerRecord<String, CloudEvent> eventRecord = updateEvents.get(0);
-    CloudEvent event = eventRecord.value();
+    CloudEvent event = updateEvents.get(0).value();
     log.info("Update event received: {}", event);
 
-    // Verify CloudEvent metadata
     assertThat(event.getType()).isEqualTo("Customer::updated");
     assertThat(event.getSource().toString()).isEqualTo("/customer/events");
     assertThat(event.getSubject()).isEqualTo(updatedCustomer.id().toString());
 
-    // Deserialize event data to Customer
     Customer eventCustomer = objectMapper.readValue(
-        new String(event.getData().toBytes()),
-        Customer.class
-                                                   );
-
-    // Verify customer data in event
+        new String(event.getData().toBytes()), Customer.class);
     assertThat(eventCustomer)
         .usingRecursiveComparison()
         .ignoringFields("updatedAt")
@@ -276,36 +257,27 @@ class CustomerIntegrationTest {
         Void.class);
     assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
-
     // Verify database state - customer should be deleted
     await()
         .atMost(5, TimeUnit.SECONDS)
-        .untilAsserted(() -> {
-          assertThat(customerRepository.findById(createdCustomer.id())).isEmpty();
-        });
+        .untilAsserted(() ->
+            assertThat(customerRepository.findById(createdCustomer.id())).isEmpty());
 
     // Verify Kafka event
     ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> deleteEvents = StreamSupport.stream(records.spliterator(), false)
-        .filter(record -> record.value().getType().equals("Customer::deleted"))
-        .collect(Collectors.toList());
+    List<ConsumerRecord<String, CloudEvent>> deleteEvents = filterEventsByType(records, "Customer::deleted");
 
     assertThat(deleteEvents).hasSize(1);
 
-    ConsumerRecord<String, CloudEvent> eventRecord = deleteEvents.get(0);
-    CloudEvent event = eventRecord.value();
+    CloudEvent event = deleteEvents.get(0).value();
     log.info("Delete event received: {}", event);
 
-    // Verify CloudEvent metadata
     assertThat(event.getType()).isEqualTo("Customer::deleted");
     assertThat(event.getSource().toString()).isEqualTo("/customer/events");
     assertThat(event.getSubject()).isEqualTo(createdCustomer.id().toString());
 
-    // Deserialize event data to Customer
     Customer eventCustomer = objectMapper.readValue(
         new String(event.getData().toBytes()), Customer.class);
-
-    // Verify customer data in event
     assertThat(eventCustomer)
         .usingRecursiveComparison()
         .ignoringFields("updatedAt")
@@ -391,7 +363,7 @@ class CustomerIntegrationTest {
         .orElseThrow(() -> new AssertionError("No primary email found on created customer"));
 
     // Search by email
-    String searchUrl = baseUrl + "/search?email=" + java.net.URLEncoder.encode(email, "UTF-8");
+    String searchUrl = baseUrl + "/search?email=" + java.net.URLEncoder.encode(email, StandardCharsets.UTF_8);
     ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(searchUrl, Customer.class);
 
     assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -429,7 +401,7 @@ class CustomerIntegrationTest {
         .orElseThrow(() -> new AssertionError("No SSN document found on created customer"));
 
     // Search by SSN
-    String searchUrl = baseUrl + "/search?ssn=" + java.net.URLEncoder.encode(ssn, "UTF-8");
+    String searchUrl = baseUrl + "/search?ssn=" + java.net.URLEncoder.encode(ssn, StandardCharsets.UTF_8);
     ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(searchUrl, Customer.class);
 
     assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -526,9 +498,7 @@ class CustomerIntegrationTest {
 
     // Verify Customer::updated Kafka event
     ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> updateEvents = StreamSupport.stream(records.spliterator(), false)
-        .filter(r -> r.value().getType().equals("Customer::updated"))
-        .collect(Collectors.toList());
+    List<ConsumerRecord<String, CloudEvent>> updateEvents = filterEventsByType(records, "Customer::updated");
 
     assertThat(updateEvents).hasSize(1);
     CloudEvent event = updateEvents.get(0).value();
@@ -539,6 +509,17 @@ class CustomerIntegrationTest {
     Customer eventCustomer = objectMapper.readValue(new String(event.getData().toBytes()), Customer.class);
     assertThat(eventCustomer.firstName()).isEqualTo("PatchedKafka");
     assertThat(eventCustomer.lastName()).isEqualTo(originalLastName);
+  }
+
+  // -----------------------------------------------------------------------
+  // Helpers
+  // -----------------------------------------------------------------------
+
+  private List<ConsumerRecord<String, CloudEvent>> filterEventsByType(
+      ConsumerRecords<String, CloudEvent> records, String eventType) {
+    return StreamSupport.stream(records.spliterator(), false)
+        .filter(record -> record.value().getType().equals(eventType))
+        .toList();
   }
 
   private void setupKafkaConsumer() {
@@ -556,5 +537,4 @@ class CustomerIntegrationTest {
     // Initial poll to trigger partition assignment
     kafkaConsumer.poll(Duration.ofMillis(100));
   }
-
 }
