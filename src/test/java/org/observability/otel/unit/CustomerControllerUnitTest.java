@@ -2,11 +2,14 @@ package org.observability.otel.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.observability.otel.rest.ApiConstants.ApiPath.*;
 import static org.observability.otel.rest.ApiConstants.ApiPath.BASE_V1_API_PATH;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -46,7 +49,6 @@ import org.springframework.test.web.servlet.RequestBuilder;
 
 @WebMvcTest(CustomerController.class)
 @Import(UnitTestConfig.class)
-// @TestPropertySource(properties = "spring.data.jpa.repositories.enabled=false")
 class CustomerControllerUnitTest {
 
   @Autowired private MockMvc mockMvc;
@@ -141,6 +143,65 @@ class CustomerControllerUnitTest {
         .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
   }
 
+  private RequestBuilder buildGetCustomersRequest() {
+    return get(customersUrl)
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
+        .contentType(MediaType.APPLICATION_JSON);
+  }
+
+  private RequestBuilder buildGetCustomersRequest(int limit) {
+    return get(customersUrl)
+        .param("limit", String.valueOf(limit))
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
+        .contentType(MediaType.APPLICATION_JSON);
+  }
+
+  private RequestBuilder buildGetCustomersRequest(int limit, Long after) {
+    return get(customersUrl)
+        .param("limit", String.valueOf(limit))
+        .param("after", after.toString())
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
+        .contentType(MediaType.APPLICATION_JSON);
+  }
+
+  private RequestBuilder buildPostRawRequest(String rawJson) {
+    return post(customersUrl)
+        .content(rawJson)
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  private RequestBuilder buildPostRequestWithContentType(Customer customer, MediaType contentType) {
+    return post(customersUrl)
+        .content(writeValueAsString(customer))
+        .contentType(contentType)
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  private RequestBuilder buildSearchByEmailRequest(String email) {
+    return get(customersUrl + "/search")
+        .param("email", email)
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  private RequestBuilder buildSearchBySsnRequest(String ssn) {
+    return get(customersUrl + "/search")
+        .param("ssn", ssn)
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  private RequestBuilder buildSearchBothRequest(String email, String ssn) {
+    return get(customersUrl + "/search")
+        .param("email", email)
+        .param("ssn", ssn)
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  private RequestBuilder buildSearchRequest() {
+    return get(customersUrl + "/search")
+        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
   private String writeValueAsString(Object value) {
     try {
       return objectMapper.writeValueAsString(value);
@@ -157,16 +218,9 @@ class CustomerControllerUnitTest {
   void shouldCreateNewCustomer() throws Exception {
     when(customerService.create(any(Customer.class))).thenReturn(fullCustomer);
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                post(customersUrl)
-                    .content(objectMapper.writeValueAsString(fullCustomer))
-                    .contentType(MediaType.APPLICATION_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildPostRequest(fullCustomer));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.CREATED.value());
-
     assertThat(parseResponse(result, Customer.class))
         .usingRecursiveComparison()
         .isEqualTo(fullCustomer);
@@ -177,13 +231,7 @@ class CustomerControllerUnitTest {
   void shouldRetrieveExistingCustomer() throws Exception {
     when(customerService.findById(any(Long.class))).thenReturn(basicCustomer);
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl + "/1")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildGetRequest(1L));
 
     assertJsonResponse(result, HttpStatus.OK);
     Customer responseCustomer = parseResponse(result, Customer.class);
@@ -208,17 +256,10 @@ class CustomerControllerUnitTest {
   void shouldDeleteExistingCustomer() throws Exception {
     doNothing().when(customerService).delete(1L);
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                delete(customersUrl + "/1")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildDeleteRequest(1L));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.NO_CONTENT.value());
-    // Verify that the service method was indeed called
-    verify(customerService, times(1)).delete(1L);
+    verify(customerService).delete(1L);
   }
 
   /*
@@ -231,13 +272,7 @@ class CustomerControllerUnitTest {
     when(customerService.findById(any(Long.class)))
         .thenThrow(new CustomerNotFoundException(errorMessage));
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl + "/9999")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildGetRequest(9999L));
 
     assertErrorResponse(result, HttpStatus.NOT_FOUND, "Customer not found", errorMessage);
   }
@@ -249,14 +284,7 @@ class CustomerControllerUnitTest {
     CustomerPageResponse page = new CustomerPageResponse(customers, updatedCustomer.id(), true, 2);
     when(customerService.getCustomers(isNull(), eq(2))).thenReturn(page);
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl)
-                    .param("limit", "2")
-                    .accept(MediaType.APPLICATION_JSON)
-                    .contentType(MediaType.APPLICATION_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildGetCustomersRequest(2));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
     CustomerPageResponse response = parseResponse(result, CustomerPageResponse.class);
@@ -273,15 +301,7 @@ class CustomerControllerUnitTest {
     CustomerPageResponse page = new CustomerPageResponse(customers, null, false, 2);
     when(customerService.getCustomers(eq(basicCustomer.id()), eq(2))).thenReturn(page);
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl)
-                    .param("limit", "2")
-                    .param("after", basicCustomer.id().toString())
-                    .accept(MediaType.APPLICATION_JSON)
-                    .contentType(MediaType.APPLICATION_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildGetCustomersRequest(2, basicCustomer.id()));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
     CustomerPageResponse response = parseResponse(result, CustomerPageResponse.class);
@@ -302,7 +322,7 @@ class CustomerControllerUnitTest {
     MvcResult result = performRequest(buildPostRequest(basicCustomer));
     MockHttpServletResponse response = result.getResponse();
     String jsonResponse = response.getContentAsString();
-    JsonNode jsonNode = new ObjectMapper().readTree(jsonResponse);
+    JsonNode jsonNode = objectMapper.readTree(jsonResponse);
 
     // Then
     assertThat(response.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
@@ -311,8 +331,7 @@ class CustomerControllerUnitTest {
     assertThat(jsonNode.get("status").asInt()).isEqualTo(HttpStatus.CONFLICT.value());
     assertThat(jsonNode.get("detail").asText()).contains("Customer already exists");
 
-    // Verify service interaction
-    verify(customerService, times(1)).create(any(Customer.class));
+    verify(customerService).create(any(Customer.class));
   }
 
   @Test
@@ -368,13 +387,7 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("Should reject malformed JSON")
   void shouldRejectMalformedJson() throws Exception {
-    MvcResult result =
-        mockMvc
-            .perform(
-                post(customersUrl)
-                    .content("{invalid json}")
-                    .contentType(MediaType.APPLICATION_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildPostRawRequest("{invalid json}"));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
     assertThat(result.getResponse().getContentAsString()).contains("JSON parsing error");
@@ -383,22 +396,9 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("Should reject unsupported media type")
   void shouldRejectUnsupportedMediaType() throws Exception {
-    MvcResult result =
-        performRequest(
-            post(customersUrl)
-                .content(writeValueAsString(basicCustomer))
-                .contentType(MediaType.TEXT_PLAIN)
-                .accept(MediaType.APPLICATION_JSON));
+    MvcResult result = performRequest(buildPostRequestWithContentType(basicCustomer, MediaType.TEXT_PLAIN));
 
     assertResponse(result, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
-  }
-
-  @Test
-  @DisplayName("Should reject request with invalid path variable")
-  void shouldRejectInvalidPathVariable() throws Exception {
-    MvcResult result = performRequest(buildGetRequest(null));
-
-    assertResponse(result, HttpStatus.BAD_REQUEST); // Corrected from UNSUPPORTED_MEDIA_TYPE
   }
 
   @Test
@@ -453,27 +453,17 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("Should reject request with non-numeric ID")
   void shouldRejectNonNumericId() throws Exception {
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl + "/abc")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-            .andReturn();
+    MvcResult result = performRequest(
+        get(customersUrl + "/abc")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON));
     assertResponse(result, HttpStatus.BAD_REQUEST);
   }
 
   @Test
   @DisplayName("Should return 400 when limit is below minimum (0)")
   void shouldRejectLimitBelowMin() throws Exception {
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl)
-                    .param("limit", "0")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildGetCustomersRequest(0));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
   }
@@ -481,14 +471,7 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("Should return 400 when limit exceeds maximum (101)")
   void shouldRejectLimitAboveMax() throws Exception {
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl)
-                    .param("limit", "101")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildGetCustomersRequest(101));
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
   }
@@ -499,13 +482,7 @@ class CustomerControllerUnitTest {
     CustomerPageResponse emptyPage = new CustomerPageResponse(Collections.emptyList(), null, false, 20);
     when(customerService.getCustomers(isNull(), eq(20))).thenReturn(emptyPage);
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                get(customersUrl)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-            .andReturn();
+    MvcResult result = performRequest(buildGetCustomersRequest());
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
     CustomerPageResponse response = parseResponse(result, CustomerPageResponse.class);
@@ -645,7 +622,7 @@ class CustomerControllerUnitTest {
     Customer responseCustomer = readCustomerResponse(result.getResponse());
     assertThat(responseCustomer.firstName()).isEqualTo("Jane");
     assertThat(responseCustomer.lastName()).isEqualTo(basicCustomer.lastName());
-    verify(customerService, times(1)).patch(eq(basicCustomer.id()), any(String.class));
+    verify(customerService).patch(eq(basicCustomer.id()), any(String.class));
   }
 
   @Test
@@ -658,7 +635,7 @@ class CustomerControllerUnitTest {
     assertJsonResponse(result, HttpStatus.OK);
     Customer responseCustomer = readCustomerResponse(result.getResponse());
     assertThat(responseCustomer).usingRecursiveComparison().isEqualTo(basicCustomer);
-    verify(customerService, times(1)).patch(eq(basicCustomer.id()), any(String.class));
+    verify(customerService).patch(eq(basicCustomer.id()), any(String.class));
   }
 
   @Test
@@ -687,12 +664,12 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("PATCH with wrong Content-Type application/json - 415")
   void shouldReturn415ForWrongContentTypeOnPatch() throws Exception {
-    MvcResult result = mockMvc.perform(
+    // PATCH requires application/merge-patch+json; sending application/json triggers 415
+    MvcResult result = performRequest(
         patch(customersUrl + "/" + basicCustomer.id())
             .content("{\"firstName\":\"Jane\"}")
             .contentType(MediaType.APPLICATION_JSON)
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-        .andReturn();
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON));
 
     assertResponse(result, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
   }
@@ -706,16 +683,12 @@ class CustomerControllerUnitTest {
   void shouldReturnCustomerWhenSearchingByEmail() throws Exception {
     when(customerService.findByEmail("found@test.com")).thenReturn(basicCustomer);
 
-    MvcResult result = mockMvc.perform(
-        get(customersUrl + "/search")
-            .param("email", "found@test.com")
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-        .andReturn();
+    MvcResult result = performRequest(buildSearchByEmailRequest("found@test.com"));
 
     assertJsonResponse(result, HttpStatus.OK);
     Customer responseCustomer = parseResponse(result, Customer.class);
     assertThat(responseCustomer).usingRecursiveComparison().isEqualTo(basicCustomer);
-    verify(customerService, times(1)).findByEmail("found@test.com");
+    verify(customerService).findByEmail("found@test.com");
   }
 
   @Test
@@ -725,14 +698,10 @@ class CustomerControllerUnitTest {
     when(customerService.findByEmail("missing@test.com"))
         .thenThrow(new CustomerNotFoundException(errorMessage));
 
-    MvcResult result = mockMvc.perform(
-        get(customersUrl + "/search")
-            .param("email", "missing@test.com")
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-        .andReturn();
+    MvcResult result = performRequest(buildSearchByEmailRequest("missing@test.com"));
 
     assertErrorResponse(result, HttpStatus.NOT_FOUND, "Customer Not Found", errorMessage);
-    verify(customerService, times(1)).findByEmail("missing@test.com");
+    verify(customerService).findByEmail("missing@test.com");
   }
 
   @Test
@@ -740,16 +709,12 @@ class CustomerControllerUnitTest {
   void shouldReturnCustomerWhenSearchingBySSN() throws Exception {
     when(customerService.findBySSN("123-45-6789")).thenReturn(basicCustomer);
 
-    MvcResult result = mockMvc.perform(
-        get(customersUrl + "/search")
-            .param("ssn", "123-45-6789")
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-        .andReturn();
+    MvcResult result = performRequest(buildSearchBySsnRequest("123-45-6789"));
 
     assertJsonResponse(result, HttpStatus.OK);
     Customer responseCustomer = parseResponse(result, Customer.class);
     assertThat(responseCustomer).usingRecursiveComparison().isEqualTo(basicCustomer);
-    verify(customerService, times(1)).findBySSN("123-45-6789");
+    verify(customerService).findBySSN("123-45-6789");
   }
 
   @Test
@@ -759,25 +724,16 @@ class CustomerControllerUnitTest {
     when(customerService.findBySSN("000-00-0000"))
         .thenThrow(new CustomerNotFoundException(errorMessage));
 
-    MvcResult result = mockMvc.perform(
-        get(customersUrl + "/search")
-            .param("ssn", "000-00-0000")
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-        .andReturn();
+    MvcResult result = performRequest(buildSearchBySsnRequest("000-00-0000"));
 
     assertErrorResponse(result, HttpStatus.NOT_FOUND, "Customer Not Found", errorMessage);
-    verify(customerService, times(1)).findBySSN("000-00-0000");
+    verify(customerService).findBySSN("000-00-0000");
   }
 
   @Test
   @DisplayName("Should return 400 when both email and ssn are provided")
   void shouldReturn400WhenBothEmailAndSsnProvided() throws Exception {
-    MvcResult result = mockMvc.perform(
-        get(customersUrl + "/search")
-            .param("email", "a@b.com")
-            .param("ssn", "123")
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-        .andReturn();
+    MvcResult result = performRequest(buildSearchBothRequest("a@b.com", "123"));
 
     assertResponse(result, HttpStatus.BAD_REQUEST);
     assertThat(result.getResponse().getContentAsString())
@@ -789,10 +745,7 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("Should return 400 when neither email nor ssn is provided")
   void shouldReturn400WhenNeitherEmailNorSsnProvided() throws Exception {
-    MvcResult result = mockMvc.perform(
-        get(customersUrl + "/search")
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON))
-        .andReturn();
+    MvcResult result = performRequest(buildSearchRequest());
 
     assertResponse(result, HttpStatus.BAD_REQUEST);
     assertThat(result.getResponse().getContentAsString())
