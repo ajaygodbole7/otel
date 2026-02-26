@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.OngoingStubbing;
 import org.observability.otel.domain.Customer;
 import org.observability.otel.domain.CustomerTestDataProvider;
 import org.observability.otel.exception.CustomerConflictException;
@@ -49,7 +48,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * Tests for ExceptionTranslator's RFC 7807 Problem Detail responses
  */
 @ExtendWith(MockitoExtension.class)
-class ExceptionTranslatorTest {
+class ExceptionTranslatorUnitTest {
 
   @Mock private Environment env;
   @Mock private HttpServletRequest request;
@@ -188,10 +187,10 @@ class ExceptionTranslatorTest {
     // when
     ResponseEntity<ProblemDetail> response = exceptionTranslator.handleMediaTypeNotAccepted(ex, request);
 
-    // then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
-    assertThat(response.getBody().getTitle()).isEqualTo("UNSUPPORTED_MEDIA_TYPE");
-    assertThat(response.getBody().getStatus()).isEqualTo(415);
+    // then — 406 Not Acceptable, not 415 Unsupported Media Type
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_ACCEPTABLE);
+    assertThat(response.getBody().getTitle()).isEqualTo("NOT_ACCEPTABLE");
+    assertThat(response.getBody().getStatus()).isEqualTo(406);
   }
 
   @Test

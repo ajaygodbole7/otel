@@ -7,11 +7,8 @@ import static org.observability.otel.rest.ApiConstants.ApiPath.CUSTOMERS;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cloudevents.CloudEvent;
-import io.cloudevents.core.data.BytesCloudEventData;
-import io.cloudevents.jackson.JsonCloudEventData;
 import io.cloudevents.kafka.CloudEventDeserializer;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,8 +44,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -93,20 +88,9 @@ class CustomerIntegrationTest {
   private KafkaConsumer<String, CloudEvent> kafkaConsumer;
   private String baseUrl;
 
-  private List<ConsumerRecord<String, CloudEvent>> consumedEvents;
-
-  @DynamicPropertySource
-  static void registerProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
-    registry.add("spring.datasource.url", postgres::getJdbcUrl);
-    registry.add("spring.datasource.username", postgres::getUsername);
-    registry.add("spring.datasource.password", postgres::getPassword);
-  }
-
   @BeforeEach
   void setUp() {
     setupKafkaConsumer();
-    consumedEvents = new ArrayList<>();
     baseUrl = String.format("http://localhost:%d%s", port, BASE_V1_API_PATH + CUSTOMERS);
   }
 
@@ -425,38 +409,6 @@ class CustomerIntegrationTest {
     assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 
-  private ResponseEntity<Customer> createCustomer(Customer customer) {
-    log.info("Creating customer with ID: {}", customer.id());
-    CustomerEntity entity = CustomerTestDataProvider.createCustomerEntity(customer);
-
-    return restTemplate.postForEntity(
-        "http://localhost:" + port + "/api/v1/customers",
-        entity,
-        Customer.class);
-  }
-
-  private ResponseEntity<Customer> updateCustomer(Customer customer) {
-    log.info("Updating customer with ID: {}", customer.id());
-    CustomerEntity entity = CustomerTestDataProvider.createCustomerEntity(customer);
-
-    return restTemplate.exchange(
-        "http://localhost:" + port + "/api/v1/customers/" + customer.id(),
-        HttpMethod.PUT,
-        new HttpEntity<>(entity),
-        Customer.class
-                                );
-  }
-
-  private ResponseEntity<Customer> getCustomer(Long id) {
-    return restTemplate.getForEntity("http://localhost:" + port + "/api/v1/customers/" + id,
-        Customer.class);
-  }
-
-  private ResponseEntity<Void> deleteCustomer(Long id) {
-    restTemplate.delete("http://localhost:" + port + "/api/v1/customers/" + id);
-    return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-  }
-
   private void setupKafkaConsumer() {
     Properties props = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
@@ -473,9 +425,4 @@ class CustomerIntegrationTest {
     kafkaConsumer.poll(Duration.ofMillis(100));
   }
 
-  private List<ConsumerRecord<String, CloudEvent>> getConsumedEventsOfType(String eventType) {
-    return consumedEvents.stream()
-        .filter(record -> record.value().getType().equals(eventType))
-        .toList();
-  }
 }

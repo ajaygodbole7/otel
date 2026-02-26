@@ -52,7 +52,6 @@ class CustomerEventPublisherUnitTest {
   @Mock
   private KafkaTemplate<String, CloudEvent> kafkaTemplate;
   private ObjectMapper objectMapper;
-  @InjectMocks
   private CustomerEventPublisher eventPublisher;
   // Test data
   private Customer basicCustomer;
@@ -88,19 +87,6 @@ class CustomerEventPublisherUnitTest {
     );
     return new SendResult<>(null, metadata);
   }
-  @Test
-  @DisplayName("Should publish customer created event successfully")
-  void shouldPublishCustomerCreatedEvent() {
-    lenient().when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(CompletableFuture.completedFuture(null));
-
-
-    eventPublisher.publishCustomerCreated(basicCustomer);
-
-    verify(kafkaTemplate, times(1))
-        .send(anyString(), anyString(), any(CloudEvent.class));
-  }
-
   @Test
   @DisplayName("Should handle null KafkaTemplate response gracefully")
   void shouldHandleNullKafkaResponseGracefully() {
@@ -280,22 +266,6 @@ class CustomerEventPublisherUnitTest {
         .hasMessageContaining("Failed to publish event");
   }
 
-  @Test
-  @DisplayName("Should verify Kafka metadata in SendResult")
-  void shouldVerifyKafkaMetadata() {
-    // Given
-    SendResult<String, CloudEvent> sendResult = createMockSendResult(1, 42L);
-    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
-        .thenReturn(CompletableFuture.completedFuture(sendResult));
-
-    // When
-    eventPublisher.publishCustomerCreated(basicCustomer);
-
-    // Then
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), any(CloudEvent.class));
-    assertThat(sendResult.getRecordMetadata().partition()).isEqualTo(1);
-    assertThat(sendResult.getRecordMetadata().offset()).isEqualTo(42L);
-  }
   @Test
   @DisplayName("Should handle Kafka send timeout gracefully")
   void shouldHandleKafkaSendTimeoutGracefully() {

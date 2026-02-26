@@ -45,7 +45,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.dao.TransientDataAccessResourceException;
-import org.testcontainers.shaded.com.google.common.base.Verify;
 
 @ExtendWith(MockitoExtension.class)
 class CustomerServiceUnitTest {
@@ -125,10 +124,6 @@ class CustomerServiceUnitTest {
 
     // Verify saved entity has correct ID and JSON
     CustomerEntity capturedEntity = entityCaptor.getValue();
-    assertThat(capturedEntity.getId()).isEqualTo(result.id());
-    assertThat(capturedEntity.getCustomerJson()).contains(result.id().toString());
-
-   // Verify saved entity has correct ID and JSON
     assertThat(capturedEntity.getId()).isEqualTo(result.id());
     assertThat(capturedEntity.getCustomerJson()).contains(result.id().toString());
 
@@ -306,19 +301,19 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("Should not publish event when customer update fails due to database error")
   void shouldNotPublishEventOnUpdateFailure() {
-    // Given
-    lenient().when(customerRepository.findById(any(Long.class))).thenReturn(Optional.of(basicEntity));
-    lenient().when(customerRepository.existsById(any(Long.class))).thenReturn(true);
-    lenient().when(customerRepository.save(any(CustomerEntity.class)))
+    // Given — production code calls saveAndFlush, not save
+    when(customerRepository.existsById(any(Long.class))).thenReturn(true);
+    when(customerRepository.findById(any(Long.class))).thenReturn(Optional.of(basicEntity));
+    when(customerRepository.saveAndFlush(any(CustomerEntity.class)))
         .thenThrow(new DataAccessException("Database error") {});
 
     // When / Then
     assertThatThrownBy(() -> customerService.update(basicCustomer.id(), basicCustomer))
         .isInstanceOf(CustomerServiceException.class);
 
-    // Verifications
+    // saveAndFlush was called, but event publisher must not be reached
     verify(customerRepository).saveAndFlush(any(CustomerEntity.class));
-    verifyNoInteractions(eventPublisher); // Ensure no event is published
+    verifyNoInteractions(eventPublisher);
   }
 
 

@@ -2,6 +2,8 @@ package org.observability.otel.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +29,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class CustomerRepositoryTest {
+
+  private static final Logger log = LoggerFactory.getLogger(CustomerRepositoryTest.class);
 
   @Container
   @ServiceConnection
@@ -88,18 +92,13 @@ class CustomerRepositoryTest {
   }
 
   @Test
-  void shouldUpdateExistingCustomer() throws JsonProcessingException, InterruptedException {
+  void shouldUpdateExistingCustomer() throws JsonProcessingException {
     // Given
     var originalCustomer = CustomerTestDataProvider.createBasicCustomer();
     var entity = convertToEntity(originalCustomer);
     var saved = customerRepository.save(entity);
     customerRepository.flush();
     var initialUpdatedAt = saved.getUpdatedAt();
-
-    // Ensure time difference for updatedAt
-    Thread.sleep(10);
-
-    customerRepository.flush();
 
 
     // When
@@ -129,7 +128,8 @@ class CustomerRepositoryTest {
 
   @Test
   void shouldFindAllCustomers() throws JsonProcessingException {
-    // Given
+    // Given: start from a known clean state so hasSize(2) is reliable
+    customerRepository.deleteAll();
     var customer1 = convertToEntity(CustomerTestDataProvider.createBasicCustomer());
     var customer2 = convertToEntity(CustomerTestDataProvider.createFullCustomer());
     customerRepository.saveAll(List.of(customer1, customer2));
@@ -149,8 +149,8 @@ class CustomerRepositoryTest {
     var entity = convertToEntity(customer);
     customerRepository.saveAndFlush(entity);
 
-    System.out.println("Saved customer JSON: " + entity.getCustomerJson());
-    System.out.println("Querying for email: " + customer.emails().get(0).email());
+    log.debug("Saved customer JSON: {}", entity.getCustomerJson());
+    log.debug("Querying for email: {}", customer.emails().get(0).email());
 
 
     // When
@@ -175,8 +175,8 @@ class CustomerRepositoryTest {
         .orElseThrow(() -> new IllegalStateException("SSN not found"))
         .identifier();
 
-    System.out.println("Saved customer JSON: " + entity.getCustomerJson());
-    System.out.println("Querying for SSN: " + ssn);
+    log.debug("Saved customer JSON: {}", entity.getCustomerJson());
+    log.debug("Querying for SSN: {}", ssn);
 
     // When
     var retrieved = customerRepository.findBySSN(ssn);
@@ -335,52 +335,6 @@ class CustomerRepositoryTest {
     }
   }
 
-  private Customer retrieveCustomer(CustomerEntity entity) throws JsonProcessingException {
-    return objectMapper.readValue(entity.getCustomerJson(), Customer.class);
-  }
-
-  private void assertBasicCustomerFields(Customer actual, Customer expected) {
-    assertThat(actual)
-        .satisfies(c -> {
-          assertThat(c.id()).isEqualTo(expected.id());
-          assertThat(c.firstName()).isEqualTo(expected.firstName());
-          assertThat(c.lastName()).isEqualTo(expected.lastName());
-          assertThat(c.emails()).hasSize(1);
-          assertThat(c.emails().get(0).email()).isEqualTo(expected.emails().get(0).email());
-          assertThat(c.createdAt()).isNotNull();
-          assertThat(c.updatedAt()).isNotNull();
-        });
-  }
-
-  private void assertFullCustomerFields(Customer actual, Customer expected) {
-    assertThat(actual)
-        .satisfies(c -> {
-          assertThat(c.id()).isEqualTo(expected.id());
-          assertThat(c.firstName()).isEqualTo(expected.firstName());
-          assertThat(c.middleName()).isEqualTo(expected.middleName());
-          assertThat(c.lastName()).isEqualTo(expected.lastName());
-          assertThat(c.suffix()).isEqualTo(expected.suffix());
-
-          assertThat(c.addresses()).hasSize(2);
-          assertThat(c.addresses().get(0).type()).isEqualTo("HOME");
-          assertThat(c.addresses().get(1).type()).isEqualTo("WORK");
-
-          assertThat(c.emails()).hasSize(2);
-          assertThat(c.emails().get(0).primary()).isTrue();
-          assertThat(c.emails().get(1).primary()).isFalse();
-
-          assertThat(c.phones()).hasSize(3);
-          assertThat(c.phones()).extracting(Phone::type)
-              .containsExactlyInAnyOrder("MOBILE", "WORK", "HOME");
-
-          assertThat(c.documents()).hasSize(3);
-          assertThat(c.documents()).extracting(Document::type)
-              .containsExactlyInAnyOrder("DRIVER_LICENSE", "PASSPORT", "SSN");
-
-          assertThat(c.createdAt()).isEqualTo(expected.createdAt());
-          assertThat(c.updatedAt()).isEqualTo(expected.updatedAt());
-        });
-  }
 
 
 }
