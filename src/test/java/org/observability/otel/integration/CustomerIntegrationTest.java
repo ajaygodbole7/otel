@@ -8,7 +8,6 @@ import static org.observability.otel.rest.ApiConstants.ApiPath.CUSTOMERS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.kafka.CloudEventDeserializer;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.observability.otel.config.TestcontainersConfiguration;
 import org.observability.otel.domain.Customer;
 import org.observability.otel.domain.CustomerEntity;
 import org.observability.otel.domain.CustomerRepository;
@@ -39,17 +37,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.context.annotation.Import;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.kafka.KafkaContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /*
@@ -60,7 +59,6 @@ import org.testcontainers.utility.DockerImageName;
 *   2. Correct Kafka Event is Published by subscribing to the Kafka event
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
 @Testcontainers
 class CustomerIntegrationTest {
   private static final Logger log = LoggerFactory.getLogger(CustomerIntegrationTest.class);
@@ -68,11 +66,15 @@ class CustomerIntegrationTest {
 
   @Container
   @ServiceConnection
-  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.2");
+  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:16.2"));
 
   @Container
-  @ServiceConnection
-  static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.8.0"));
+  static KafkaContainer kafka = new KafkaContainer("apache/kafka-native:3.8.0");
+
+  @DynamicPropertySource
+  static void kafkaProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+  }
 
   @LocalServerPort
   private int port;
@@ -91,6 +93,7 @@ class CustomerIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    customerRepository.deleteAll();
     setupKafkaConsumer();
     baseUrl = String.format("http://localhost:%d%s", port, BASE_V1_API_PATH + CUSTOMERS);
   }
@@ -177,6 +180,8 @@ class CustomerIntegrationTest {
         .firstName("Updated First Name")
         .lastName("Updated Last Name")
         .emails(createdCustomer.emails())
+        .phones(createdCustomer.phones())
+        .addresses(createdCustomer.addresses())
         .createdAt(createdCustomer.createdAt())
         .build();
 
@@ -362,9 +367,9 @@ class CustomerIntegrationTest {
         .findFirst()
         .orElseThrow(() -> new AssertionError("No primary email found on created customer"));
 
-    // Search by email
-    String searchUrl = baseUrl + "/search?email=" + java.net.URLEncoder.encode(email, StandardCharsets.UTF_8);
-    ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(searchUrl, Customer.class);
+    // Search by email — use URI template to avoid double-encoding by RestTemplate
+    ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(
+        baseUrl + "/search?email={email}", Customer.class, email);
 
     assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     Customer foundCustomer = searchResponse.getBody();
@@ -400,9 +405,9 @@ class CustomerIntegrationTest {
         .findFirst()
         .orElseThrow(() -> new AssertionError("No SSN document found on created customer"));
 
-    // Search by SSN
-    String searchUrl = baseUrl + "/search?ssn=" + java.net.URLEncoder.encode(ssn, StandardCharsets.UTF_8);
-    ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(searchUrl, Customer.class);
+    // Search by SSN — use URI template to avoid double-encoding by RestTemplate
+    ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(
+        baseUrl + "/search?ssn={ssn}", Customer.class, ssn);
 
     assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     Customer foundCustomer = searchResponse.getBody();
