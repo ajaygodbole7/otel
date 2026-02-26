@@ -2,26 +2,51 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Loop
+
+Every piece of work follows this loop, in order:
+
+1. **Pull** — `git pull` to sync with `origin/main`
+2. **Branch** — `git checkout -b <type>/<short-description>`
+3. **Implement** — make the changes
+4. **Test** — run the full test suite (see commands below); all tests must pass before committing
+5. **Commit** — `git commit` with a clear message; author must be `ajaygodbole7 <ajay.godbole@gmail.com>`, no Co-Authored-By trailers
+6. **Push** — `git push -u origin <branch>`
+7. **Code review** — create a PR; review and address feedback
+8. **Merge to main** — squash-merge into `main`
+9. **Rerun tests on main** — `git checkout main && git pull`, then run the full test suite again to confirm green
+10. **Push main** — `git push`
+
+Never skip steps 4 or 9. Tests must be green both on the feature branch and again after merging to `main`.
+
 ## Build & Run Commands
 
 ```bash
 # Build the project
-./mvnw clean package
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package
 
-# Run tests (all)
-./mvnw test
+# Run ALL tests (unit + integration + repository + utility)
+# Requires Podman running; RYUK must be disabled for rootless Podman
+DOCKER_HOST="unix:///var/folders/v6/f7hvgvm506jgnmv6y066ccm80000gn/T/podman/podman-machine-default-api.sock" \
+  TESTCONTAINERS_RYUK_DISABLED=true \
+  JAVA_HOME=$(/usr/libexec/java_home -v 21) \
+  mvn test
+
+# Run only unit + utility tests (no Docker/Podman required)
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test \
+  -Dtest="*UnitTest,*UtilsTest,JsonUtils*,ValidCurrency*"
 
 # Run a single test class
-./mvnw test -Dtest=CustomerServiceUnitTest
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test -Dtest=CustomerServiceUnitTest
 
 # Run a single test method
-./mvnw test -Dtest=CustomerServiceUnitTest#methodName
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test -Dtest=CustomerServiceUnitTest#methodName
 
 # Run the application (default profile, requires local PostgreSQL + Kafka)
-./mvnw spring-boot:run
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn spring-boot:run
 
 # Run with local profile (uses Docker Compose for infra, enables OpenTelemetry)
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 # Run with OpenTelemetry Java agent
 java -javaagent:opentelemetry-javaagent.jar -Dspring.profiles.active=local -jar target/otel-0.0.1-SNAPSHOT.jar
@@ -48,7 +73,7 @@ node sse-server.js   # Express SSE server for real-time updates
 
 ## Architecture
 
-**Layered Spring Boot microservice** (Java 21, Spring Boot 3.4.2) for customer CRUD with observability:
+**Layered Spring Boot microservice** (Java 21, Spring Boot 3.5.11) for customer CRUD with observability:
 
 ```
 REST (CustomerController) → Service (CustomerService) → Repository (CustomerRepository) → PostgreSQL
@@ -81,9 +106,9 @@ Testcontainers config is in `TestcontainersConfiguration.java`; test data genera
 
 ## Java Version Note
 
-System default may be Java 25. Always force Java 21 for Maven:
+System default may be Java 25. Always force Java 21 for Maven. The `./mvnw` wrapper is broken (missing `.mvn/wrapper/maven-wrapper.properties`); use the system `mvn` directly:
 ```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn <goal>
 ```
 
 ## Next Planned Work
