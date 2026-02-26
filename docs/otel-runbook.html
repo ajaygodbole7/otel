@@ -5,135 +5,316 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>otel-demo — OpenTelemetry Runbook</title>
   <style>
+    /* ── Light theme tokens ───────────────────────────────────────────────── */
     :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --surface2: #22263a;
-      --border:   #2e3450;
-      --accent:   #7c6af7;
-      --accent2:  #56cfb2;
-      --warn:     #f59e0b;
-      --danger:   #ef4444;
-      --success:  #22c55e;
-      --text:     #e2e8f0;
-      --muted:    #94a3b8;
-      --code-bg:  #131520;
-      --code-text:#c9d1d9;
-      --link:     #818cf8;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.7;
+      --bg:        #f8fafc;
+      --surface:   #ffffff;
+      --surface2:  #f1f5f9;
+      --surface3:  #e8edf5;
+      --border:    #dde3ec;
+      --border2:   #c8d2e0;
+      --accent:    #4338ca;      /* indigo */
+      --accent-lt: #ede9fe;
+      --accent2:   #0f766e;      /* teal */
+      --accent2-lt:#ccfbf1;
+      --warn:      #b45309;      /* amber */
+      --warn-lt:   #fef3c7;
+      --danger:    #b91c1c;      /* red */
+      --danger-lt: #fee2e2;
+      --success:   #15803d;      /* green */
+      --success-lt:#dcfce7;
+      --text:      #0f172a;
+      --text2:     #334155;
+      --muted:     #64748b;
+      --code-bg:   #f0f4f8;
+      --code-text: #1e293b;
+      --link:      #3730a3;
+      --nav-bg:    #1e293b;
+      --nav-text:  #cbd5e1;
+      --nav-hover: #334155;
+      --nav-active:#4338ca;
+      --nav-section:#94a3b8;
+      --docker-tab:#2563eb;
+      --podman-tab:#7c3aed;
     }
 
-    /* ── Layout ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 15px;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────────── */
     .layout { display: flex; min-height: 100vh; }
+
     nav {
-      width: 260px;
-      min-width: 260px;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      padding: 2rem 1rem;
+      width: 268px;
+      min-width: 268px;
+      background: var(--nav-bg);
+      padding: 1.5rem 0;
       position: sticky;
       top: 0;
       height: 100vh;
       overflow-y: auto;
+      flex-shrink: 0;
     }
-    main { flex: 1; padding: 2.5rem 3rem; max-width: 960px; }
 
-    /* ── Nav ── */
-    .nav-logo { font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: 1.5rem; }
-    .nav-logo span { color: var(--accent2); }
+    main {
+      flex: 1;
+      padding: 2.5rem 3.5rem 4rem;
+      max-width: 980px;
+      min-width: 0;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────────────── */
+    .nav-logo {
+      display: flex; align-items: center; gap: .5rem;
+      padding: 0 1.2rem 1.2rem;
+      border-bottom: 1px solid #2d3f55;
+      margin-bottom: .8rem;
+    }
+    .nav-logo .logo-text {
+      font-size: .95rem; font-weight: 700;
+      color: #f1f5f9; letter-spacing: -.01em;
+    }
+    .nav-logo .logo-text span { color: #818cf8; }
+    .nav-logo .logo-badge {
+      font-size: .65rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; background: #312e81; color: #a5b4fc;
+      padding: .15em .5em; border-radius: 4px;
+    }
+
     nav ul { list-style: none; }
-    nav ul li { margin: 2px 0; }
+    nav ul li { }
     nav ul li a {
       display: block;
-      padding: 5px 10px;
-      color: var(--muted);
+      padding: .35rem 1.2rem;
+      color: var(--nav-text);
       text-decoration: none;
-      font-size: 0.85rem;
-      border-radius: 4px;
-      transition: all .15s;
+      font-size: .82rem;
+      transition: background .12s, color .12s;
+      border-left: 3px solid transparent;
     }
-    nav ul li a:hover { color: var(--text); background: var(--surface2); }
-    nav .nav-section {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      color: var(--accent);
-      margin: 1.2rem 10px 0.4rem;
+    nav ul li a:hover {
+      color: #f1f5f9;
+      background: var(--nav-hover);
+      border-left-color: #818cf8;
     }
-    nav ul li.sub a { padding-left: 20px; font-size: 0.8rem; }
+    nav ul li a.active {
+      color: #c7d2fe;
+      background: #1e3050;
+      border-left-color: var(--nav-active);
+    }
+    .nav-section {
+      font-size: .67rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--nav-section);
+      padding: 1rem 1.2rem .35rem;
+    }
+    nav ul li.sub a { padding-left: 2rem; font-size: .79rem; }
 
-    /* ── Typography ── */
-    h1 { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: .5rem; }
-    h2 { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin: 2.5rem 0 1rem;
-         padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
-    h3 { font-size: 1.05rem; font-weight: 600; color: var(--accent2); margin: 1.5rem 0 .6rem; }
-    h4 { font-size: .9rem; font-weight: 600; color: var(--warn); margin: 1.2rem 0 .4rem; }
-    p  { margin-bottom: .9rem; }
-    a  { color: var(--link); }
+    /* ── Top hero ───────────────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #4338ca 0%, #0f766e 100%);
+      color: #fff;
+      border-radius: 12px;
+      padding: 2rem 2.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .hero h1 { font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: .4rem; }
+    .hero p  { color: rgba(255,255,255,.85); font-size: .95rem; margin: 0; }
+    .hero-tags { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
+    .hero-tag {
+      background: rgba(255,255,255,.18); color: #fff;
+      font-size: .72rem; font-weight: 600; padding: .2em .7em;
+      border-radius: 20px; letter-spacing: .03em;
+    }
+
+    /* ── Typography ─────────────────────────────────────────────────────────── */
+    h2 {
+      font-size: 1.35rem; font-weight: 700; color: var(--accent);
+      margin: 2.5rem 0 1rem;
+      padding-bottom: .45rem;
+      border-bottom: 2px solid var(--border);
+      display: flex; align-items: center; gap: .5rem;
+    }
+    h2 .h-icon { font-size: 1rem; opacity: .7; }
+    h3 {
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      margin: 1.6rem 0 .6rem;
+    }
+    h4 {
+      font-size: .88rem; font-weight: 700;
+      color: var(--accent2); margin: 1.2rem 0 .4rem;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    p  { margin-bottom: .85rem; color: var(--text2); }
+    a  { color: var(--link); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    ul, ol { margin: .5rem 0 .9rem 1.4rem; }
+    ul, ol { margin: .4rem 0 .9rem 1.5rem; color: var(--text2); }
     li { margin-bottom: .3rem; }
-    strong { color: var(--text); }
-    .muted  { color: var(--muted); font-size: .85rem; }
-    .subtitle { color: var(--muted); font-size: 1rem; margin-bottom: 2rem; }
+    strong { color: var(--text); font-weight: 600; }
+    .muted   { color: var(--muted); font-size: .85rem; }
+    .subtitle { color: var(--muted); font-size: .95rem; margin-bottom: 2rem; }
 
-    /* ── Code blocks ── */
+    /* ── Code ───────────────────────────────────────────────────────────────── */
     pre {
       background: var(--code-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 1.2rem 1.4rem;
+      padding: 1.1rem 1.3rem;
       overflow-x: auto;
-      margin: .8rem 0 1.2rem;
-      font-size: .82rem;
-      line-height: 1.65;
+      margin: .7rem 0 1.2rem;
+      font-size: .8rem;
+      line-height: 1.7;
+      position: relative;
     }
-    code { font-family: "JetBrains Mono", "Fira Code", Menlo, monospace; }
+    code { font-family: "JetBrains Mono","Fira Code","Cascadia Code",Menlo,monospace; }
     pre code { color: var(--code-text); }
     :not(pre) > code {
       background: var(--surface2);
-      color: var(--accent2);
-      padding: .15em .45em;
+      color: var(--accent);
+      padding: .1em .4em;
       border-radius: 4px;
-      font-size: .82em;
+      font-size: .8em;
+      border: 1px solid var(--border);
     }
+    pre .comment { color: #64748b; }
+    pre .cmd     { color: #1e40af; }
+    pre .str     { color: #15803d; }
+    pre .key     { color: #7c3aed; }
 
-    /* ── Callouts ── */
-    .callout {
-      border-left: 3px solid;
-      border-radius: 0 6px 6px 0;
-      padding: .9rem 1.2rem;
-      margin: 1rem 0;
-      font-size: .88rem;
+    /* ── Tabbed code blocks (Docker / Podman) ──────────────────────────────── */
+    .tab-group { margin: .7rem 0 1.2rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+    .tab-header { display: flex; background: var(--surface2); border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      padding: .45rem 1.1rem;
+      font-size: .78rem; font-weight: 700;
+      border: none; background: none; cursor: pointer;
+      color: var(--muted); letter-spacing: .02em;
+      transition: color .15s, background .15s;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
     }
-    .callout.info    { border-color: var(--accent);  background: rgba(124,106,247,.08); }
-    .callout.warn    { border-color: var(--warn);    background: rgba(245,158,11,.08); }
-    .callout.success { border-color: var(--success); background: rgba(34,197,94,.08); }
-    .callout.danger  { border-color: var(--danger);  background: rgba(239,68,68,.08); }
-    .callout .label  { font-weight: 700; text-transform: uppercase; font-size: .72rem;
-                       letter-spacing: .06em; margin-bottom: .3rem; }
+    .tab-btn:hover { color: var(--text); background: var(--surface3); }
+    .tab-btn.active-docker { color: var(--docker-tab); border-bottom-color: var(--docker-tab); background: var(--surface); }
+    .tab-btn.active-podman { color: var(--podman-tab); border-bottom-color: var(--podman-tab); background: var(--surface); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tab-content pre { border-radius: 0; border: none; margin: 0; }
+    .tab-label {
+      display: inline-block; font-size: .67rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: .1em .5em; border-radius: 3px; margin-right: .4rem;
+      vertical-align: middle;
+    }
+    .tab-label.docker { background: #dbeafe; color: var(--docker-tab); }
+    .tab-label.podman { background: #ede9fe; color: var(--podman-tab); }
+
+    /* ── Callouts ───────────────────────────────────────────────────────────── */
+    .callout {
+      border-left: 4px solid;
+      border-radius: 0 8px 8px 0;
+      padding: .9rem 1.1rem;
+      margin: 1rem 0 1.3rem;
+      font-size: .875rem;
+    }
+    .callout.info    { border-color: var(--accent);  background: var(--accent-lt);  }
+    .callout.warn    { border-color: var(--warn);    background: var(--warn-lt);    }
+    .callout.success { border-color: var(--success); background: var(--success-lt); }
+    .callout.danger  { border-color: var(--danger);  background: var(--danger-lt);  }
+    .callout .label  {
+      font-weight: 800; text-transform: uppercase; font-size: .68rem;
+      letter-spacing: .08em; margin-bottom: .3rem;
+    }
     .callout.info    .label { color: var(--accent); }
     .callout.warn    .label { color: var(--warn); }
     .callout.success .label { color: var(--success); }
     .callout.danger  .label { color: var(--danger); }
+    .callout p:last-child { margin-bottom: 0; }
+    .callout ul { color: inherit; }
 
-    /* ── Step boxes ── */
-    .steps { counter-reset: step; }
-    .step {
-      display: flex; gap: 1.2rem;
-      margin: 1.2rem 0;
+    /* ── Install cards ──────────────────────────────────────────────────────── */
+    .install-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 1rem; margin: 1rem 0 1.5rem;
+    }
+    .install-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 1rem 1.2rem;
+      transition: box-shadow .15s, border-color .15s;
     }
+    .install-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+      border-color: var(--border2);
+    }
+    .install-card .ic-header {
+      display: flex; align-items: center; gap: .55rem; margin-bottom: .5rem;
+    }
+    .install-card .ic-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+    }
+    .install-card .ic-name { font-weight: 700; font-size: .9rem; color: var(--text); }
+    .install-card .ic-version {
+      font-size: .72rem; color: var(--muted); margin-left: auto;
+      background: var(--surface2); padding: .1em .5em; border-radius: 4px;
+    }
+    .install-card .ic-desc { color: var(--text2); font-size: .82rem; margin-bottom: .6rem; }
+    .install-card .ic-cmd {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-family: "JetBrains Mono","Fira Code",monospace;
+      font-size: .75rem;
+      padding: .4rem .7rem;
+      color: var(--code-text);
+      white-space: pre;
+      overflow-x: auto;
+      display: block;
+    }
+    .ic-required { border-top: 3px solid var(--accent); }
+    .ic-optional { border-top: 3px solid var(--accent2); }
+
+    /* ── Checklist ──────────────────────────────────────────────────────────── */
+    .checklist { list-style: none; margin: .5rem 0 1rem; }
+    .checklist li {
+      display: flex; align-items: flex-start; gap: .6rem;
+      padding: .35rem 0; border-bottom: 1px solid var(--border);
+      font-size: .875rem; color: var(--text2);
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist .chk {
+      width: 1.2rem; height: 1.2rem; border-radius: 50%;
+      background: var(--success-lt); color: var(--success);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem; font-weight: 700; flex-shrink: 0; margin-top: .1rem;
+    }
+    .checklist .chk.opt {
+      background: var(--accent2-lt); color: var(--accent2);
+    }
+
+    /* ── Step boxes ─────────────────────────────────────────────────────────── */
+    .steps { counter-reset: step; }
+    .step {
+      display: flex; gap: 1rem;
+      margin: 1rem 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      transition: box-shadow .15s;
+    }
+    .step:hover { box-shadow: 0 2px 8px rgba(0,0,0,.07); }
     .step-num {
       counter-increment: step;
       min-width: 2rem; height: 2rem;
@@ -141,93 +322,155 @@
       color: #fff;
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: .85rem; flex-shrink: 0; margin-top: .1rem;
+      font-weight: 800; font-size: .82rem; flex-shrink: 0; margin-top: .05rem;
     }
     .step-num::before { content: counter(step); }
     .step-body { flex: 1; }
     .step-body p:last-child { margin-bottom: 0; }
 
-    /* ── Tables ── */
-    table { width: 100%; border-collapse: collapse; margin: .8rem 0 1.4rem; font-size: .85rem; }
-    th { background: var(--surface2); color: var(--accent); text-align: left;
-         padding: .55rem .9rem; font-size: .75rem; text-transform: uppercase;
-         letter-spacing: .05em; border-bottom: 2px solid var(--border); }
-    td { padding: .55rem .9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-    tr:hover td { background: var(--surface); }
+    /* ── Tables ─────────────────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin: .7rem 0 1.4rem; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    th {
+      background: var(--surface2);
+      color: var(--text);
+      text-align: left;
+      padding: .6rem .9rem;
+      font-size: .74rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em;
+      border-bottom: 2px solid var(--border);
+    }
+    td { padding: .6rem .9rem; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text2); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    /* ── Badges ─────────────────────────────────────────────────────────────── */
     .badge {
-      display: inline-block; padding: .15em .55em; border-radius: 4px;
+      display: inline-block; padding: .15em .6em; border-radius: 5px;
       font-size: .72rem; font-weight: 700; font-family: monospace;
+      letter-spacing: .02em;
     }
-    .badge.get    { background: rgba(34,197,94,.15);  color: var(--success); }
-    .badge.post   { background: rgba(124,106,247,.15);color: var(--accent); }
-    .badge.patch  { background: rgba(245,158,11,.15); color: var(--warn); }
-    .badge.put    { background: rgba(56,207,178,.15); color: var(--accent2); }
-    .badge.delete { background: rgba(239,68,68,.15);  color: var(--danger); }
-    .badge.s201   { background: rgba(34,197,94,.15);  color: var(--success); }
-    .badge.s200   { background: rgba(34,197,94,.15);  color: var(--success); }
-    .badge.s204   { background: rgba(34,197,94,.15);  color: var(--success); }
-    .badge.s404   { background: rgba(245,158,11,.15); color: var(--warn); }
-    .badge.s400   { background: rgba(239,68,68,.15);  color: var(--danger); }
-    .badge.s409   { background: rgba(239,68,68,.15);  color: var(--danger); }
+    .badge.get    { background: #dcfce7; color: #15803d; }
+    .badge.post   { background: #dbeafe; color: #1d4ed8; }
+    .badge.patch  { background: #fef3c7; color: #b45309; }
+    .badge.put    { background: #ccfbf1; color: #0f766e; }
+    .badge.delete { background: #fee2e2; color: #b91c1c; }
+    .badge.s201   { background: #dcfce7; color: #15803d; }
+    .badge.s200   { background: #dcfce7; color: #15803d; }
+    .badge.s204   { background: #dcfce7; color: #15803d; }
+    .badge.s404   { background: #fef3c7; color: #b45309; }
+    .badge.s400   { background: #fee2e2; color: #b91c1c; }
+    .badge.s409   { background: #fee2e2; color: #b91c1c; }
 
-    /* ── Pill tags ── */
-    .tag {
-      display: inline-block; font-size: .72rem; padding: .1em .6em;
-      border-radius: 20px; margin: .1em;
-    }
-    .tag.trace   { background: rgba(124,106,247,.2); color: var(--accent); }
-    .tag.metric  { background: rgba(56,207,178,.2);  color: var(--accent2); }
-    .tag.log     { background: rgba(245,158,11,.2);  color: var(--warn); }
+    /* ── Signal tags ────────────────────────────────────────────────────────── */
+    .tag { display: inline-block; font-size: .72rem; padding: .1em .6em; border-radius: 20px; margin: .1em; }
+    .tag.trace  { background: var(--accent-lt);  color: var(--accent); }
+    .tag.metric { background: var(--accent2-lt); color: var(--accent2); }
+    .tag.log    { background: var(--warn-lt);    color: var(--warn); }
 
-    /* ── Service port grid ── */
+    /* ── Port grid ──────────────────────────────────────────────────────────── */
     .port-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: .7rem;
-      margin: 1rem 0 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: .75rem; margin: 1rem 0 1.5rem;
     }
     .port-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: .8rem 1rem;
+      border-radius: 8px; padding: .8rem 1rem;
+      transition: box-shadow .15s;
     }
-    .port-card .svc-name { font-weight: 700; font-size: .9rem; color: var(--accent2); }
-    .port-card .svc-port { font-family: monospace; color: var(--accent); font-size: .85rem; }
-    .port-card .svc-desc { color: var(--muted); font-size: .78rem; margin-top: .2rem; }
+    .port-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+    .port-card .svc-name { font-weight: 700; font-size: .88rem; color: var(--text); }
+    .port-card .svc-port { font-family: monospace; color: var(--accent); font-size: .82rem; margin: .1rem 0; }
+    .port-card .svc-desc { color: var(--muted); font-size: .76rem; }
 
-    /* ── Diagram ── */
+    /* ── Diagram ────────────────────────────────────────────────────────────── */
     .diagram {
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.2rem 1.5rem;
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 1.3rem 1.5rem;
       font-family: "JetBrains Mono","Fira Code",monospace;
-      font-size: .78rem;
-      color: var(--code-text);
+      font-size: .76rem;
+      color: #94a3b8;
       white-space: pre;
       overflow-x: auto;
       margin: 1rem 0 1.5rem;
-      line-height: 1.5;
+      line-height: 1.55;
     }
+    .diagram .d-hl  { color: #818cf8; }
+    .diagram .d-hl2 { color: #34d399; }
+    .diagram .d-box { color: #e2e8f0; }
 
-    /* ── Section separator ── */
-    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    /* ── Section separator ──────────────────────────────────────────────────── */
+    hr { border: none; border-top: 2px solid var(--border); margin: 2.5rem 0; }
     .anchor { scroll-margin-top: 1.5rem; }
 
-    /* ── TOC active highlight ── */
-    @media (max-width: 768px) {
+    /* ── OS choice banner ───────────────────────────────────────────────────── */
+    .runtime-banner {
+      display: flex; gap: .75rem; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: .8rem 1.1rem;
+      font-size: .84rem; margin: .7rem 0 1.2rem;
+    }
+    .runtime-banner .rb-label { font-weight: 700; color: var(--muted); margin-right: .25rem; }
+    .rb-pill {
+      padding: .2em .75em; border-radius: 20px; font-size: .75rem; font-weight: 700; cursor: default;
+    }
+    .rb-pill.docker { background: #dbeafe; color: var(--docker-tab); }
+    .rb-pill.podman { background: #ede9fe; color: var(--podman-tab); }
+    .rb-note { color: var(--muted); font-size: .8rem; }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 820px) {
       nav { display: none; }
       main { padding: 1.5rem; }
+      .hero { padding: 1.5rem; }
     }
   </style>
+
+  <script>
+    // Tab switching for Docker / Podman code blocks
+    function switchTab(groupId, runtime) {
+      const group = document.getElementById(groupId);
+      group.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active-docker','active-podman');
+      });
+      group.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      const btn = group.querySelector('.tab-btn[data-rt="'+runtime+'"]');
+      btn.classList.add('active-' + runtime);
+      group.querySelector('.tab-content[data-rt="'+runtime+'"]').classList.add('active');
+    }
+
+    // Highlight active nav link on scroll
+    document.addEventListener('DOMContentLoaded', () => {
+      const anchors = document.querySelectorAll('.anchor');
+      const navLinks = document.querySelectorAll('nav a');
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            navLinks.forEach(l => l.classList.remove('active'));
+            const id = e.target.id;
+            const link = document.querySelector('nav a[href="#'+id+'"]');
+            if (link) link.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-10% 0px -80% 0px' });
+      anchors.forEach(a => observer.observe(a));
+    });
+  </script>
 </head>
 <body>
 <div class="layout">
 
-<!-- ═══════════════════ SIDEBAR NAV ═══════════════════ -->
+<!-- ═══════════════════════ SIDEBAR NAV ═══════════════════════ -->
 <nav>
-  <div class="nav-logo">otel<span>-demo</span></div>
+  <div class="nav-logo">
+    <div>
+      <div class="logo-text">otel<span>-demo</span></div>
+    </div>
+    <span class="logo-badge">Runbook</span>
+  </div>
 
   <div class="nav-section">Overview</div>
   <ul>
@@ -236,9 +479,19 @@
     <li><a href="#services">Services &amp; Ports</a></li>
   </ul>
 
+  <div class="nav-section">Installation</div>
+  <ul>
+    <li><a href="#install-overview">What You Need</a></li>
+    <li><a href="#install-java">Java 21</a></li>
+    <li><a href="#install-maven">Maven</a></li>
+    <li><a href="#install-docker">Docker</a></li>
+    <li><a href="#install-podman">Podman</a></li>
+    <li><a href="#install-agent">OTel Agent</a></li>
+    <li><a href="#install-verify">Verify Setup</a></li>
+  </ul>
+
   <div class="nav-section">Running the Stack</div>
   <ul>
-    <li><a href="#prereqs">Prerequisites</a></li>
     <li><a href="#start-infra">1 — Start Infra</a></li>
     <li><a href="#start-app">2 — Start App</a></li>
     <li><a href="#verify-signals">3 — Verify Signals</a></li>
@@ -247,7 +500,7 @@
   <div class="nav-section">API Reference</div>
   <ul>
     <li><a href="#api-endpoints">All Endpoints</a></li>
-    <li><a href="#api-create">Create Customer</a></li>
+    <li><a href="#api-create">Create</a></li>
     <li><a href="#api-get">Get by ID</a></li>
     <li><a href="#api-list">List (Paginated)</a></li>
     <li><a href="#api-patch">Partial Update</a></li>
@@ -264,7 +517,7 @@
     <li><a href="#manual-curl">Manual curl Examples</a></li>
   </ul>
 
-  <div class="nav-section">Grafana Observability</div>
+  <div class="nav-section">Grafana</div>
   <ul>
     <li><a href="#grafana-dashboards">Dashboards</a></li>
     <li><a href="#grafana-explore-traces">Explore — Traces</a></li>
@@ -290,72 +543,74 @@
   </ul>
 </nav>
 
-<!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
+<!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
 <main>
 
-  <h1>otel-demo OpenTelemetry Runbook</h1>
-  <p class="subtitle">
-    Step-by-step guide for running, testing, and observing the
-    <strong>otel-demo</strong> Spring Boot application with full
-    OpenTelemetry instrumentation — traces, metrics, and logs.
-  </p>
+  <!-- Hero -->
+  <div class="hero">
+    <h1>otel-demo OpenTelemetry Runbook</h1>
+    <p>
+      Complete guide for installing, running, testing, and observing the
+      <strong style="color:#fff">otel-demo</strong> Spring Boot application —
+      with full distributed tracing, metrics, and structured logs.
+    </p>
+    <div class="hero-tags">
+      <span class="hero-tag">Spring Boot 3.5</span>
+      <span class="hero-tag">Java 21</span>
+      <span class="hero-tag">OTel Java Agent 2.x</span>
+      <span class="hero-tag">Grafana 11.4</span>
+      <span class="hero-tag">Tempo 2.7</span>
+      <span class="hero-tag">Prometheus</span>
+      <span class="hero-tag">Loki</span>
+      <span class="hero-tag">Docker / Podman</span>
+    </div>
+  </div>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="architecture" class="anchor">Architecture</h2>
+  <h2 id="architecture" class="anchor"><span class="h-icon">🏗</span> Architecture</h2>
 
   <p>
-    <strong>otel-demo</strong> is a layered Spring Boot 3.5 microservice for customer CRUD
-    operations. Every HTTP request produces correlated traces, metrics, and structured logs
+    <strong>otel-demo</strong> is a layered Spring Boot microservice for customer CRUD.
+    Every HTTP request produces correlated traces, metrics, and structured logs — all
     exported through the OpenTelemetry Java agent to the full LGTM stack.
   </p>
 
   <div class="diagram">
-┌─────────────────────────────── Spring Boot App (port 8080) ────────────────────────────────┐
-│                                                                                              │
-│   HTTP Client ──► CustomerController ──► CustomerService ──► CustomerRepository ──► Postgres│
-│                          │                      │                                            │
-│                          │              CustomerEventPublisher ──► Kafka (customer-events)   │
-│                          │                                                                   │
-│   OTel Java Agent (auto-instrumentation):                                                    │
-│     Spans  → HTTP server span, Spring Data span, JDBC span, Kafka producer span             │
-│     Metrics→ http.server.request.duration, jvm.memory, db.client.connections, kafka.*       │
-│     Logs   → Logback with trace_id / span_id in MDC → OTLP log exporter                    │
-└──────────────────────────────────────────┬───────────────────────────────────────────────────┘
-                                           │ OTLP HTTP (port 4318)
-                              ┌────────────▼────────────┐
-                              │   OTel Collector         │
-                              │  (otel-collector-contrib)│
-                              │                          │
-                              │  Receivers: otlp         │
-                              │  Processors: batch,      │
-                              │             memory_limiter│
-                              │  Exporters:              │
-                              │    traces  → Tempo :4317 │
-                              │    metrics → Prometheus  │
-                              │    logs    → Loki        │
-                              └──┬──────────┬──────────┬─┘
-                                 │          │          │
-                    ┌────────────▼┐  ┌──────▼───┐ ┌───▼────┐
-                    │   Tempo      │  │Prometheus│ │  Loki  │
-                    │  (traces)    │  │(metrics) │ │ (logs) │
-                    │  port 3200   │  │port 9090 │ │port3100│
-                    └──────┬───────┘  └────┬─────┘ └───┬────┘
-                           │               │            │
-                    ┌──────▼───────────────▼────────────▼────┐
-                    │              Grafana  :3000              │
-                    │  Dashboards, Explore, Trace→Log links    │
-                    └──────────────────────────────────────────┘
+<span class="d-box">┌────────────────────── Spring Boot App  :8080 ──────────────────────┐
+│                                                                      │
+│  HTTP ──► <span class="d-hl">CustomerController</span> ──► <span class="d-hl">CustomerService</span> ──► <span class="d-hl">Repository</span> ──► Postgres
+│                                  │                                   │
+│                         <span class="d-hl">CustomerEventPublisher</span> ──► Kafka               │
+│                                                                      │
+│  OTel Java Agent (auto-instrumentation)                              │
+│    Traces  → HTTP server · Spring Data · JDBC · Kafka producer      │
+│    Metrics → http.server.request.duration · jvm.* · db.* · kafka.*  │
+│    Logs    → Logback MDC (trace_id / span_id) → OTLP exporter       │
+└────────────────────────────┬─────────────────────────────────────────┘
+                             │ <span class="d-hl2">OTLP/HTTP  :4318</span>
+               ┌─────────────▼──────────────┐
+               │    <span class="d-hl">OTel Collector</span>           │
+               │  recv: otlp gRPC + HTTP    │
+               │  proc: batch + memlimiter  │
+               │  export ──────────────────►│ Prometheus scrape :8889
+               └──┬────────────┬──────────┬─┘
+                  │            │          │
+        <span class="d-hl2">Tempo :3200</span>  <span class="d-hl2">Prometheus :9090</span>  <span class="d-hl2">Loki :3100</span>
+                  └────────────┴──────────┘
+                              │
+               <span class="d-hl">Grafana  :3000  (Dashboards + Explore)</span></span>
   </div>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="signal-flow" class="anchor">Signal Flow</h2>
+  <h2 id="signal-flow" class="anchor"><span class="h-icon">📡</span> Signal Flow</h2>
 
+  <div class="table-wrap">
   <table>
-    <thead><tr><th>Signal</th><th>Producer</th><th>Transport</th><th>Collector Export</th><th>Storage</th><th>UI</th></tr></thead>
+    <thead><tr><th>Signal</th><th>Produced by</th><th>Transport</th><th>Collector export</th><th>Storage</th><th>View in</th></tr></thead>
     <tbody>
       <tr>
         <td><span class="tag trace">Traces</span></td>
-        <td>OTel Java Agent (bytecode instrumentation)</td>
+        <td>OTel Java Agent bytecode</td>
         <td>OTLP/HTTP → <code>:4318</code></td>
         <td>OTLP/gRPC → Tempo <code>:4317</code></td>
         <td>Tempo <code>:3200</code></td>
@@ -367,11 +622,11 @@
         <td>OTLP/HTTP → <code>:4318</code></td>
         <td>Prometheus exposition <code>:8889</code></td>
         <td>Prometheus <code>:9090</code></td>
-        <td>Grafana Dashboards + Explore → Prometheus</td>
+        <td>Grafana Dashboards &amp; Explore</td>
       </tr>
       <tr>
         <td><span class="tag log">Logs</span></td>
-        <td>Logback + OTel appender (trace_id/span_id in MDC)</td>
+        <td>Logback + OTel appender</td>
         <td>OTLP/HTTP → <code>:4318</code></td>
         <td>OTLP/HTTP → Loki <code>:3100</code></td>
         <td>Loki <code>:3100</code></td>
@@ -379,114 +634,421 @@
       </tr>
     </tbody>
   </table>
+  </div>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="services" class="anchor">Services &amp; Ports</h2>
+  <h2 id="services" class="anchor"><span class="h-icon">🔌</span> Services &amp; Ports</h2>
 
   <div class="port-grid">
     <div class="port-card">
       <div class="svc-name">Spring Boot App</div>
       <div class="svc-port">:8080</div>
-      <div class="svc-desc">Customer API + Actuator</div>
+      <div class="svc-desc">Customer REST API + Actuator</div>
     </div>
     <div class="port-card">
       <div class="svc-name">Grafana</div>
       <div class="svc-port">:3000</div>
-      <div class="svc-desc">Dashboards &amp; Explore (no auth)</div>
+      <div class="svc-desc">Dashboards &amp; Explore — no login required</div>
     </div>
     <div class="port-card">
       <div class="svc-name">Prometheus</div>
       <div class="svc-port">:9090</div>
-      <div class="svc-desc">Metrics query UI</div>
+      <div class="svc-desc">PromQL query UI</div>
     </div>
     <div class="port-card">
       <div class="svc-name">Tempo</div>
       <div class="svc-port">:3200</div>
-      <div class="svc-desc">Trace storage &amp; query</div>
+      <div class="svc-desc">Distributed trace storage &amp; query</div>
     </div>
     <div class="port-card">
       <div class="svc-name">Loki</div>
       <div class="svc-port">:3100</div>
-      <div class="svc-desc">Log aggregation &amp; query</div>
+      <div class="svc-desc">Log aggregation &amp; LogQL query</div>
     </div>
     <div class="port-card">
       <div class="svc-name">OTel Collector</div>
       <div class="svc-port">:4317 / :4318 / :8889</div>
-      <div class="svc-desc">gRPC / HTTP receive; Prometheus export</div>
+      <div class="svc-desc">gRPC recv / HTTP recv / Prometheus export</div>
     </div>
     <div class="port-card">
       <div class="svc-name">PostgreSQL</div>
       <div class="svc-port">:5432</div>
-      <div class="svc-desc">demodb / demouser / demopass</div>
+      <div class="svc-desc">demodb · demouser · demopass</div>
     </div>
     <div class="port-card">
       <div class="svc-name">Kafka</div>
       <div class="svc-port">:9092</div>
-      <div class="svc-desc">customer-events topic (KRaft)</div>
+      <div class="svc-desc">customer-events topic (KRaft mode)</div>
     </div>
     <div class="port-card">
       <div class="svc-name">Collector zPages</div>
       <div class="svc-port">:55679</div>
-      <div class="svc-desc"><code>/debug/tracez</code> — live span debug</div>
+      <div class="svc-desc"><code>/debug/tracez</code> live span inspector</div>
     </div>
   </div>
 
   <hr />
 
-  <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="prereqs" class="anchor">Prerequisites</h2>
+  <!-- ════════════════════════════════════════════════════════
+       INSTALLATION
+       ════════════════════════════════════════════════════ -->
+  <h2 id="install-overview" class="anchor"><span class="h-icon">📦</span> Installation — What You Need</h2>
 
-  <table>
-    <thead><tr><th>Tool</th><th>Version</th><th>Notes</th></tr></thead>
-    <tbody>
-      <tr><td>Java</td><td>21 (LTS)</td><td>Install: <code>brew install --cask temurin@21</code></td></tr>
-      <tr><td>Maven</td><td>3.9+</td><td>Use system <code>mvn</code> — <code>./mvnw</code> is broken</td></tr>
-      <tr><td>Podman (or Docker)</td><td>Podman 5+ / Docker 24+</td><td>Podman: <code>brew install podman</code>, then <code>podman machine start</code></td></tr>
-      <tr><td>podman-compose</td><td>latest</td><td><code>brew install podman-compose</code></td></tr>
-      <tr><td>OTel Java Agent</td><td>2.x</td><td>Must be at <code>./opentelemetry-javaagent.jar</code> (project root)</td></tr>
-      <tr><td>curl + python3</td><td>any</td><td>Used by test scripts; pre-installed on macOS</td></tr>
-    </tbody>
-  </table>
+  <p>
+    This guide covers macOS (Apple Silicon and Intel) and Linux. Windows users should use
+    WSL 2 with Ubuntu and follow the Linux instructions.
+  </p>
 
-  <h3>Download the OTel Agent</h3>
-  <pre><code>curl -L -o opentelemetry-javaagent.jar \
-  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar</code></pre>
+  <div class="runtime-banner">
+    <span class="rb-label">Container runtime:</span>
+    <span class="rb-pill docker">🐋 Docker Desktop</span>
+    <span style="color:var(--muted)">or</span>
+    <span class="rb-pill podman">🦭 Podman Desktop</span>
+    <span class="rb-note">— either works; both sets of commands are shown throughout.</span>
+  </div>
 
-  <h3>Verify Java 21</h3>
-  <pre><code># Confirm Java 21 is installed
+  <ul class="checklist">
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>Java 21 (LTS)</strong> — required to build and run the app. Java 25 is on many machines but is not supported.</div>
+    </li>
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>Maven 3.9+</strong> — build tool. Use system <code>mvn</code>; the bundled <code>./mvnw</code> wrapper is not reliable in this repo.</div>
+    </li>
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>Docker Desktop <em>or</em> Podman Desktop</strong> — runs the full observability stack (7 containers).</div>
+    </li>
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>OTel Java Agent JAR</strong> — placed at the project root as <code>opentelemetry-javaagent.jar</code>. Enables automatic instrumentation without code changes.</div>
+    </li>
+    <li>
+      <span class="chk opt">○</span>
+      <div><strong>curl &amp; python3</strong> — used by the test scripts. Pre-installed on macOS and most Linux distros.</div>
+    </li>
+    <li>
+      <span class="chk opt">○</span>
+      <div><strong>Git</strong> — to clone the repository. Pre-installed on macOS via Xcode Command Line Tools.</div>
+    </li>
+  </ul>
+
+  <!-- ── Java 21 ── -->
+  <h2 id="install-java" class="anchor"><span class="h-icon">☕</span> Install Java 21</h2>
+
+  <p>
+    Eclipse Temurin (formerly AdoptOpenJDK) is the recommended free, open-source Java 21 distribution.
+    Multiple JDK versions can coexist — <code>/usr/libexec/java_home</code> (macOS) selects the right one.
+  </p>
+
+  <h3>macOS — Homebrew</h3>
+  <pre><code># Install Eclipse Temurin 21 via Homebrew Cask
+brew install --cask temurin@21
+
+# Verify
 /usr/libexec/java_home -v 21
-# Should print something like: /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
+# → /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
 
-# Check version
-$(/usr/libexec/java_home -v 21)/bin/java -version</code></pre>
+$(/usr/libexec/java_home -v 21)/bin/java -version
+# → openjdk version "21.x.x" ...</code></pre>
 
-  <h3>Start Podman Machine (if using Podman)</h3>
-  <pre><code>podman machine start
+  <h3>macOS — SDKMAN (alternative)</h3>
+  <pre><code># Install SDKMAN first (if not already installed)
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install and use Temurin 21
+sdk install java 21.0.5-tem
+sdk use java 21.0.5-tem
+java -version</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code>sudo apt-get update
+sudo apt-get install -y wget apt-transport-https gpg
+
+# Add Eclipse Temurin repository
+wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+  | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/adoptium.gpg
+
+echo "deb https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/adoptium.list
+
+sudo apt-get update
+sudo apt-get install -y temurin-21-jdk
+java -version</code></pre>
+
+  <h3>Red Hat / Fedora / Amazon Linux</h3>
+  <pre><code>sudo dnf install java-21-amazon-corretto-devel   # Amazon Linux / Fedora
+# or
+sudo yum install java-21-openjdk-devel            # RHEL / CentOS
+
+java -version</code></pre>
+
+  <div class="callout warn">
+    <div class="label">Multiple Java versions</div>
+    <p>
+      If you have Java 25 (or any other version) installed alongside Java 21, always invoke
+      Maven and the app using the explicit binary path — never just <code>java</code> or
+      <code>JAVA_HOME=... java</code> (that sets the variable but not the PATH binary).
+    </p>
+    <pre style="margin-top:.5rem"><code># ✅ Correct — explicit binary
+$(/usr/libexec/java_home -v 21)/bin/java -version
+
+# ❌ Wrong — JAVA_HOME prefix doesn't change which java is on PATH
+JAVA_HOME=$(/usr/libexec/java_home -v 21) java -version</code></pre>
+  </div>
+
+  <!-- ── Maven ── -->
+  <h2 id="install-maven" class="anchor"><span class="h-icon">🔧</span> Install Maven 3.9+</h2>
+
+  <h3>macOS — Homebrew</h3>
+  <pre><code>brew install maven
+
+# Verify
+mvn -version
+# → Apache Maven 3.9.x ...</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code>sudo apt-get install -y maven
+mvn -version</code></pre>
+
+  <h3>Manual install (all platforms)</h3>
+  <pre><code># Download and unpack Maven 3.9 binary
+MVN_VER=3.9.9
+curl -fsSL https://downloads.apache.org/maven/maven-3/${MVN_VER}/binaries/apache-maven-${MVN_VER}-bin.tar.gz \
+  | sudo tar -xz -C /opt
+sudo ln -s /opt/apache-maven-${MVN_VER}/bin/mvn /usr/local/bin/mvn
+
+mvn -version</code></pre>
+
+  <div class="callout info">
+    <div class="label">Always build with Java 21</div>
+    <p>Prefix every Maven command with the Java 21 home:</p>
+    <pre style="margin-top:.5rem"><code>JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests</code></pre>
+    <p>On Linux where you installed Temurin 21 as the only JDK, plain <code>mvn</code> works fine.</p>
+  </div>
+
+  <!-- ── Docker ── -->
+  <h2 id="install-docker" class="anchor"><span class="h-icon">🐋</span> Install Docker Desktop</h2>
+
+  <p>Docker Desktop bundles the Docker Engine, Docker Compose, and Docker CLI in one installer.</p>
+
+  <h3>macOS</h3>
+  <pre><code># Option A — Homebrew Cask (recommended)
+brew install --cask docker
+
+# Option B — direct download from Docker
+# https://docs.docker.com/desktop/install/mac-install/
+# Download Docker.dmg and drag to Applications</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code># Remove old versions
+sudo apt-get remove docker docker-engine docker.io containerd runc
+
+# Install prerequisites
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker's GPG key and repository
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list
+
+# Install Docker Engine + Compose plugin
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Add your user to the docker group (avoid sudo)
+sudo usermod -aG docker $USER
+newgrp docker</code></pre>
+
+  <h3>Verify Docker</h3>
+  <pre><code>docker version
+docker compose version   # should be 2.x
+
+# Test with hello-world
+docker run --rm hello-world</code></pre>
+
+  <!-- ── Podman ── -->
+  <h2 id="install-podman" class="anchor"><span class="h-icon">🦭</span> Install Podman Desktop</h2>
+
+  <p>
+    Podman is a daemonless, rootless container engine. On macOS it runs containers inside a
+    lightweight Linux VM (<em>Podman Machine</em>). <strong>podman-compose</strong> is
+    a separate pip/brew package that implements the Docker Compose spec.
+  </p>
+
+  <h3>macOS — Homebrew</h3>
+  <pre><code># Install Podman engine and compose companion
+brew install podman podman-compose
+
+# Create and start the Podman machine (Linux VM)
+podman machine init --cpus 4 --memory 4096 --disk-size 40
+podman machine start
+
+# Verify
+podman version
+podman-compose version</code></pre>
+
+  <h3>macOS — Podman Desktop GUI</h3>
+  <pre><code># Install Podman Desktop (GUI app — manages the machine for you)
+brew install --cask podman-desktop
+
+# Launch Podman Desktop from Applications, then click "Initialize and Start"
+# Come back here once the machine is running and the socket is active</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code>sudo apt-get update
+sudo apt-get install -y podman
+
+# Install podman-compose via pip
+pip3 install podman-compose
+
+podman version
+podman-compose version</code></pre>
+
+  <h3>Configure Podman socket for Testcontainers</h3>
+  <pre><code># Get the socket path (macOS)
 podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}'
-# Should print the socket path, e.g. /var/folders/.../podman.sock</code></pre>
+# → /var/folders/.../podman.sock  (or ~/.local/share/containers/... on Linux)
+
+# Export for this shell session
+export DOCKER_HOST="unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
+export TESTCONTAINERS_RYUK_DISABLED=true
+
+# Verify — Docker CLI talks to Podman
+docker info | grep "Server Version"</code></pre>
+
+  <div class="callout info">
+    <div class="label">Podman vs Docker for Testcontainers</div>
+    <p>
+      Testcontainers (used in integration tests) requires <code>DOCKER_HOST</code> to point to
+      the Podman socket and <code>TESTCONTAINERS_RYUK_DISABLED=true</code> because Podman
+      rootless mode does not support Ryuk (the Testcontainers resource reaper).
+      The <code>infra/start.sh</code> and test scripts handle this automatically.
+    </p>
+  </div>
+
+  <!-- ── OTel Agent ── -->
+  <h2 id="install-agent" class="anchor"><span class="h-icon">🔭</span> Install the OTel Java Agent</h2>
+
+  <p>
+    The OpenTelemetry Java agent provides <strong>zero-code automatic instrumentation</strong>
+    for Spring Boot, JDBC, Kafka, and dozens of other frameworks via Java bytecode manipulation.
+    It must be present at the project root as <code>opentelemetry-javaagent.jar</code>.
+  </p>
+
+  <pre><code># Download the latest stable release to the project root
+curl -L -o opentelemetry-javaagent.jar \
+  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
+
+# Verify the file is a valid JAR
+ls -lh opentelemetry-javaagent.jar
+# → -rw-r--r--  1 user  staff  ~55M  opentelemetry-javaagent.jar
+
+java -jar opentelemetry-javaagent.jar 2>&1 | head -5
+# → OpenTelemetry Java agent X.Y.Z</code></pre>
+
+  <div class="callout warn">
+    <div class="label">Not committed to Git</div>
+    The agent JAR is in <code>.gitignore</code>. Every developer must download it locally.
+    A <code>55 MB+</code> binary should not be in source control.
+  </div>
+
+  <!-- ── Verify ── -->
+  <h2 id="install-verify" class="anchor"><span class="h-icon">✅</span> Verify Your Setup</h2>
+
+  <p>Run these checks before proceeding. Every item should pass.</p>
+
+  <pre><code># 1. Java 21
+$(/usr/libexec/java_home -v 21)/bin/java -version 2>&1 | head -1
+# → openjdk version "21.x.x" ...
+
+# 2. Maven
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn -version | head -1
+# → Apache Maven 3.9.x ...
+
+# 3. Container runtime (Docker)
+docker info --format "Docker Engine {{.ServerVersion}}" 2>/dev/null
+# → Docker Engine 27.x
+
+# 3. Container runtime (Podman — if using Podman instead)
+podman version --format "Podman {{.Version}}" 2>/dev/null
+# → Podman 5.x
+
+# 4. compose
+docker compose version   # Docker
+# or
+podman-compose version   # Podman
+
+# 5. OTel agent present
+ls -lh opentelemetry-javaagent.jar
+# → file exists, ~55 MB
+
+# 6. Build the project (first time — downloads dependencies)
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests -q
+ls target/otel-*-SNAPSHOT.jar
+# → target/otel-0.0.1-SNAPSHOT.jar</code></pre>
+
+  <div class="callout success">
+    <div class="label">All green?</div>
+    If all six checks pass you are ready to start the stack. Continue to the next section.
+  </div>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="start-infra" class="anchor">1 — Start the Observability Infrastructure</h2>
+  <h2 id="start-infra" class="anchor"><span class="h-icon">🚀</span> 1 — Start the Observability Infrastructure</h2>
 
   <h3>Option A — Automated script (recommended)</h3>
   <pre><code>./infra/start.sh</code></pre>
-  <p>The script auto-detects Docker or Podman, starts all containers, and waits for each service to become healthy before printing the URL summary.</p>
+  <p>
+    Auto-detects Docker or Podman, starts all 7 containers, waits for each service to
+    become healthy, and prints a URL summary. Use <code>./infra/stop.sh</code> to bring
+    it back down (add <code>--destroy</code> to also wipe volumes).
+  </p>
 
-  <h3>Option B — Manual podman compose</h3>
-  <pre><code># Detect Podman socket and export
-PODMAN_SOCK=$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')
-export DOCKER_HOST="unix://$PODMAN_SOCK"
+  <h3>Option B — Manual compose</h3>
+
+  <div class="tab-group" id="tg-start-infra">
+    <div class="tab-header">
+      <button class="tab-btn active-docker" data-rt="docker" onclick="switchTab('tg-start-infra','docker')">🐋 Docker</button>
+      <button class="tab-btn" data-rt="podman" onclick="switchTab('tg-start-infra','podman')">🦭 Podman</button>
+    </div>
+    <div class="tab-content active" data-rt="docker">
+<pre><code># Start all containers in detached mode
+docker compose -f infra/docker-compose.yml up -d
+
+# Check container status
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# Follow logs for a specific service
+docker compose -f infra/docker-compose.yml logs -f grafana</code></pre>
+    </div>
+    <div class="tab-content" data-rt="podman">
+<pre><code># Export Podman socket so compose can find the daemon
+export DOCKER_HOST="unix://$(podman machine inspect \
+  --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
 export TESTCONTAINERS_RYUK_DISABLED=true
 
-# Start all services in the background
+# Start all containers in detached mode
 podman compose -f infra/docker-compose.yml up -d
 
 # Check container status
-podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"</code></pre>
+podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-  <h3>Verify infra health</h3>
+# Follow logs for a specific service
+podman logs -f grafana_demo</code></pre>
+    </div>
+  </div>
+
+  <h3>Verify each service is healthy</h3>
   <pre><code># Prometheus
 curl http://localhost:9090/-/ready
 # → Prometheus Server is Ready.
@@ -495,46 +1057,90 @@ curl http://localhost:9090/-/ready
 curl http://localhost:3000/api/health
 # → {"database":"ok","version":"11.4.0",...}
 
-# Tempo
+# Tempo (takes ~20 s to initialise the ingester ring)
 curl http://localhost:3200/ready
-# → Ingester is ready (may take ~20s to initialise)
+# → Ingester is ready
 
-# OTel Collector zPages
-open http://localhost:55679/debug/tracez</code></pre>
+# OTel Collector debug page
+open http://localhost:55679/debug/tracez  # macOS
+xdg-open http://localhost:55679/debug/tracez  # Linux</code></pre>
 
   <div class="callout warn">
-    <div class="label">Tempo startup</div>
-    Tempo's ingester ring takes ~15–20 seconds after container start before <code>/ready</code> returns HTTP 200.
-    This is normal — the app can start sending spans immediately; Tempo will buffer them.
+    <div class="label">Tempo startup delay</div>
+    Tempo's ingester ring takes 15–20 seconds to initialise after the container starts.
+    The app can begin sending spans immediately — Tempo buffers them in its WAL.
   </div>
 
-  <h3>Stop the stack</h3>
-  <pre><code># Stop, keep volumes (data persists between runs)
-./infra/stop.sh
+  <h3>Container management commands</h3>
 
-# Stop AND destroy all data (fresh start next time)
-./infra/stop.sh --destroy</code></pre>
+  <div class="tab-group" id="tg-containers">
+    <div class="tab-header">
+      <button class="tab-btn active-docker" data-rt="docker" onclick="switchTab('tg-containers','docker')">🐋 Docker</button>
+      <button class="tab-btn" data-rt="podman" onclick="switchTab('tg-containers','podman')">🦭 Podman</button>
+    </div>
+    <div class="tab-content active" data-rt="docker">
+<pre><code># List running containers
+docker ps
+
+# View logs (all services)
+docker compose -f infra/docker-compose.yml logs --tail=50
+
+# View logs for one service
+docker logs grafana_demo -f
+
+# Restart a single service (e.g. after config change)
+docker compose -f infra/docker-compose.yml restart tempo
+
+# Stop and keep volumes
+docker compose -f infra/docker-compose.yml down
+
+# Stop and destroy all volumes (fresh start)
+docker compose -f infra/docker-compose.yml down -v</code></pre>
+    </div>
+    <div class="tab-content" data-rt="podman">
+<pre><code># List running containers
+podman ps
+
+# View logs (all services via compose)
+podman compose -f infra/docker-compose.yml logs --tail=50
+
+# View logs for one container
+podman logs grafana_demo -f
+
+# Restart a single service
+podman compose -f infra/docker-compose.yml restart tempo
+
+# Stop and keep volumes
+podman compose -f infra/docker-compose.yml down
+
+# Stop and destroy all volumes (fresh start)
+podman compose -f infra/docker-compose.yml down -v</code></pre>
+    </div>
+  </div>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="start-app" class="anchor">2 — Start the Application</h2>
+  <h2 id="start-app" class="anchor"><span class="h-icon">⚙️</span> 2 — Start the Application</h2>
 
   <h3>Option A — Automated script</h3>
-  <pre><code>./infra/start-app.sh</code></pre>
-  <p>
-    Builds the JAR (skipping tests), detects Java 21, starts the app with the OTel agent,
-    and waits for <code>/actuator/health</code> to return UP before printing endpoint URLs.
-    Set <code>SKIP_BUILD=true</code> to reuse an existing JAR.
-  </p>
-  <pre><code># Reuse existing JAR (faster iteration)
+  <pre><code># Build + start (first time)
+./infra/start-app.sh
+
+# Skip rebuild if JAR already exists
 SKIP_BUILD=true ./infra/start-app.sh</code></pre>
 
+  <p>
+    The script builds the JAR (Java 21, skipping tests), starts the app with the OTel agent,
+    and waits for <code>/actuator/health</code> to return <code>UP</code> before printing URLs.
+    Output is tailed to <code>app.log</code> in the project root.
+  </p>
+
   <h3>Option B — Manual</h3>
-  <pre><code># 1. Build (Java 21 required)
+  <pre><code># 1. Build (Java 21 mandatory)
 JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests
 
-# 2. Start with OTel agent (background)
+# 2. Start with OTel agent (background, log to file)
 $(/usr/libexec/java_home -v 21)/bin/java \
   -javaagent:opentelemetry-javaagent.jar \
   -Dspring.profiles.active=local \
@@ -547,46 +1153,63 @@ $(/usr/libexec/java_home -v 21)/bin/java \
   -jar target/otel-*-SNAPSHOT.jar \
   > app.log 2>&1 &
 
-# 3. Tail the log
-tail -f app.log | grep -E "Started|ERROR|WARN|trace_id"
+# 3. Watch startup
+tail -f app.log | grep -E "Started|ERROR|trace_id"
 
 # 4. Health check
 curl http://localhost:8080/actuator/health</code></pre>
 
-  <div class="callout info">
-    <div class="label">Why explicit Java 21 path?</div>
-    <code>JAVA_HOME=... java</code> sets the variable but the shell resolves <code>java</code>
-    from <code>PATH</code> — which may still be Java 25 on modern Macs. Using
-    <code>$(/usr/libexec/java_home -v 21)/bin/java</code> guarantees the right binary.
+  <div class="callout danger">
+    <div class="label">Critical — never disable default instrumentation</div>
+    <p>
+      Do <strong>not</strong> add <code>otel.instrumentation.common.default-enabled: false</code>
+      to <code>application-local.yml</code>. Spring's OTel autoconfigure reads this on startup
+      and disables <em>all</em> bytecode instrumentation — resulting in empty <code>trace_id=</code>
+      in MDC and zero spans exported. The current config is correct and should not be modified.
+    </p>
   </div>
 
-  <div class="callout danger">
-    <div class="label">Critical: do not set default-enabled=false</div>
-    Never add <code>otel.instrumentation.common.default-enabled: false</code> to
-    <code>application-local.yml</code>. Spring's OTel autoconfigure reads this property
-    and disables all bytecode instrumentation — resulting in empty <code>trace_id=</code>
-    in MDC and no spans exported. The <code>local</code> profile is correctly configured
-    without this property.
+  <div class="callout info">
+    <div class="label">Running tests with Testcontainers</div>
+    <p>Testcontainers needs the container runtime socket. Run the full suite with:</p>
+
+    <div class="tab-group" id="tg-tests" style="margin-top:.6rem">
+      <div class="tab-header">
+        <button class="tab-btn active-docker" data-rt="docker" onclick="switchTab('tg-tests','docker')">🐋 Docker</button>
+        <button class="tab-btn" data-rt="podman" onclick="switchTab('tg-tests','podman')">🦭 Podman</button>
+      </div>
+      <div class="tab-content active" data-rt="docker">
+<pre><code>JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test</code></pre>
+      </div>
+      <div class="tab-content" data-rt="podman">
+<pre><code>export DOCKER_HOST="unix://$(podman machine inspect \
+  --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
+export TESTCONTAINERS_RYUK_DISABLED=true
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test</code></pre>
+      </div>
+    </div>
+    <p style="margin-top:.4rem">Expected result: <strong>263 tests, 0 failures, 1 skipped</strong> (the <code>@Disabled</code> OTel trace test, deferred to Spring Boot 4 upgrade).</p>
   </div>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="verify-signals" class="anchor">3 — Verify All Three Signals</h2>
+  <h2 id="verify-signals" class="anchor"><span class="h-icon">🔍</span> 3 — Verify All Three Signals</h2>
 
-  <h3>Make a test request first</h3>
+  <h3>First, generate a test request</h3>
   <pre><code>curl -s -X POST http://localhost:8080/api/v1/customers \
   -H "Content-Type: application/json" \
   -d '{
     "type":"INDIVIDUAL",
-    "firstName":"Test","lastName":"User",
-    "emails":[{"primary":true,"email":"test@verify.com","type":"PERSONAL"}],
+    "firstName":"Test","lastName":"Signal",
+    "emails":[{"primary":true,"email":"signal@verify.com","type":"PERSONAL"}],
     "phones":[{"type":"MOBILE","countryCode":"+1","number":"5550001111"}],
-    "addresses":[{"type":"HOME","line1":"1 Main St","city":"Chicago","state":"IL","postalCode":"60601","country":"USA"}]
+    "addresses":[{"type":"HOME","line1":"1 Test St","city":"Chicago",
+                  "state":"IL","postalCode":"60601","country":"USA"}]
   }' | python3 -m json.tool</code></pre>
 
-  <h3>Verify traces in Tempo</h3>
-  <pre><code># List service names known to Tempo
+  <h3>Check traces in Tempo</h3>
+  <pre><code># Service names visible to Tempo
 curl -s http://localhost:3200/api/search/tag/service.name/values | python3 -m json.tool
 # → {"tagValues":["otel-demo","tempo-all"]}
 
@@ -594,113 +1217,79 @@ curl -s http://localhost:3200/api/search/tag/service.name/values | python3 -m js
 curl -s "http://localhost:3200/api/search?tags=service.name%3Dotel-demo&limit=5" \
   | python3 -m json.tool</code></pre>
 
-  <h3>Verify metrics in Prometheus</h3>
-  <pre><code># Confirm HTTP request counter exists
+  <h3>Check metrics in Prometheus</h3>
+  <pre><code># Confirm the HTTP request counter exists
 curl -s 'http://localhost:9090/api/v1/query?query=otel_http_server_request_duration_seconds_count' \
-  | python3 -c "import sys,json; r=json.load(sys.stdin); print(f'{len(r[\"data\"][\"result\"])} time series found')"
+  | python3 -c "import sys,json; r=json.load(sys.stdin); \
+    print(f'{len(r[\"data\"][\"result\"])} time series found')"
 
-# Check available exported labels
-curl -s 'http://localhost:9090/api/v1/labels' | python3 -m json.tool | grep http</code></pre>
+# Check the exported_job label value
+curl -s 'http://localhost:9090/api/v1/query?query=otel_http_server_request_duration_seconds_count' \
+  | python3 -c "import sys,json; r=json.load(sys.stdin); \
+    m=r['data']['result']; print(m[0]['metric'] if m else 'no data')"</code></pre>
 
-  <h3>Verify logs in Loki</h3>
-  <pre><code># Query last 5 minutes of otel-demo logs
+  <h3>Check logs in Loki</h3>
+  <pre><code># List label names — should include service_name
+curl -s http://localhost:3100/loki/api/v1/labels | python3 -m json.tool
+
+# Query last 5 minutes of app logs
 curl -sG http://localhost:3100/loki/api/v1/query_range \
   --data-urlencode 'query={service_name="otel-demo"}' \
-  --data-urlencode 'limit=10' \
-  --data-urlencode 'start='$(date -v-5M +%s%N 2>/dev/null || date -d '-5 minutes' +%s%N)''\
+  --data-urlencode 'limit=5' \
   | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 streams=d.get('data',{}).get('result',[])
-print(f'{len(streams)} log stream(s) found')
-for s in streams[:3]:
+print(f'{len(streams)} log stream(s)')
+for s in streams[:2]:
     vals=s.get('values',[])
-    if vals: print(' ', vals[-1][1][:120])
+    if vals: print(' ', vals[-1][1][:140])
 "</code></pre>
 
   <div class="callout success">
     <div class="label">Expected outcome</div>
     <ul>
-      <li>Tempo: <code>otel-demo</code> appears in service list; traces visible in search</li>
-      <li>Prometheus: <code>otel_http_server_request_duration_seconds_count</code> has results with <code>exported_job="otel-demo"</code></li>
-      <li>Loki: log stream with <code>trace_id</code> and <code>span_id</code> fields populated (non-empty)</li>
+      <li><strong>Tempo</strong>: <code>otel-demo</code> appears in service list; traces visible</li>
+      <li><strong>Prometheus</strong>: <code>otel_http_server_request_duration_seconds_count</code> has results with <code>exported_job="otel-demo"</code></li>
+      <li><strong>Loki</strong>: log lines with non-empty <code>trace_id</code> and <code>span_id</code> fields</li>
     </ul>
   </div>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="api-endpoints" class="anchor">API Endpoints Reference</h2>
+  <h2 id="api-endpoints" class="anchor"><span class="h-icon">📋</span> API Endpoints Reference</h2>
 
   <p>Base path: <code>http://localhost:8080/api/v1/customers</code></p>
 
+  <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Method</th><th>Path</th><th>Description</th><th>Status</th></tr>
+      <tr><th>Method</th><th>Path</th><th>Description</th><th>Success</th><th>Errors</th></tr>
     </thead>
     <tbody>
-      <tr>
-        <td><span class="badge post">POST</span></td>
-        <td><code>/customers</code></td>
-        <td>Create a new customer</td>
-        <td><span class="badge s201">201</span></td>
-      </tr>
-      <tr>
-        <td><span class="badge get">GET</span></td>
-        <td><code>/customers/{id}</code></td>
-        <td>Fetch customer by TSID</td>
-        <td><span class="badge s200">200</span> / <span class="badge s404">404</span></td>
-      </tr>
-      <tr>
-        <td><span class="badge get">GET</span></td>
-        <td><code>/customers?limit=N&amp;after=cursor</code></td>
-        <td>Keyset-paginated list (default limit 20)</td>
-        <td><span class="badge s200">200</span></td>
-      </tr>
-      <tr>
-        <td><span class="badge patch">PATCH</span></td>
-        <td><code>/customers/{id}</code></td>
-        <td>Partial update (RFC 7396 JSON Merge Patch)</td>
-        <td><span class="badge s200">200</span> / <span class="badge s404">404</span></td>
-      </tr>
-      <tr>
-        <td><span class="badge put">PUT</span></td>
-        <td><code>/customers/{id}</code></td>
-        <td>Full replace — all fields required</td>
-        <td><span class="badge s200">200</span> / <span class="badge s404">404</span></td>
-      </tr>
-      <tr>
-        <td><span class="badge get">GET</span></td>
-        <td><code>/customers/search?email=</code></td>
-        <td>Find customer by email address</td>
-        <td><span class="badge s200">200</span> / <span class="badge s404">404</span></td>
-      </tr>
-      <tr>
-        <td><span class="badge get">GET</span></td>
-        <td><code>/customers/search?ssn=</code></td>
-        <td>Find customer by SSN (document lookup)</td>
-        <td><span class="badge s200">200</span> / <span class="badge s404">404</span></td>
-      </tr>
-      <tr>
-        <td><span class="badge delete">DELETE</span></td>
-        <td><code>/customers/{id}</code></td>
-        <td>Delete customer — publishes CloudEvent</td>
-        <td><span class="badge s204">204</span> / <span class="badge s404">404</span></td>
-      </tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/customers</code></td><td>Create a new customer</td><td><span class="badge s201">201</span></td><td><span class="badge s400">400</span> <span class="badge s409">409</span></td></tr>
+      <tr><td><span class="badge get">GET</span></td><td><code>/customers/{id}</code></td><td>Fetch by TSID</td><td><span class="badge s200">200</span></td><td><span class="badge s404">404</span></td></tr>
+      <tr><td><span class="badge get">GET</span></td><td><code>/customers?limit=N&amp;after=cursor</code></td><td>Keyset-paginated list</td><td><span class="badge s200">200</span></td><td>—</td></tr>
+      <tr><td><span class="badge patch">PATCH</span></td><td><code>/customers/{id}</code></td><td>Partial update (RFC 7396)</td><td><span class="badge s200">200</span></td><td><span class="badge s404">404</span></td></tr>
+      <tr><td><span class="badge put">PUT</span></td><td><code>/customers/{id}</code></td><td>Full replace — all fields</td><td><span class="badge s200">200</span></td><td><span class="badge s400">400</span> <span class="badge s404">404</span></td></tr>
+      <tr><td><span class="badge get">GET</span></td><td><code>/customers/search?email=</code></td><td>Find by email address</td><td><span class="badge s200">200</span></td><td><span class="badge s404">404</span></td></tr>
+      <tr><td><span class="badge get">GET</span></td><td><code>/customers/search?ssn=</code></td><td>Find by SSN document</td><td><span class="badge s200">200</span></td><td><span class="badge s404">404</span></td></tr>
+      <tr><td><span class="badge delete">DELETE</span></td><td><code>/customers/{id}</code></td><td>Delete — publishes CloudEvent</td><td><span class="badge s204">204</span></td><td><span class="badge s404">404</span></td></tr>
     </tbody>
   </table>
+  </div>
 
-  <!-- ── CREATE ── -->
-  <h2 id="api-create" class="anchor">Create Customer</h2>
+  <h2 id="api-create" class="anchor"><span class="h-icon">➕</span> Create Customer</h2>
   <pre><code>POST /api/v1/customers
 Content-Type: application/json
 
 {
   "type": "INDIVIDUAL",
   "firstName": "Jane",
-  "lastName":  "Smith",
-  "middleName": "Marie",
-  "suffix": "Jr",
+  "lastName": "Smith",
+  "middleName": "Marie",        <span class="comment">// optional</span>
+  "suffix": "Jr",               <span class="comment">// optional</span>
   "emails": [
     {"primary": true, "email": "jane.smith@example.com", "type": "PERSONAL"}
   ],
@@ -710,24 +1299,24 @@ Content-Type: application/json
   "addresses": [
     {
       "type": "HOME",
-      "line1": "123 Elm Street",
-      "line2": "Apt 4B",
-      "city": "Chicago",
-      "state": "IL",
-      "postalCode": "60601",
-      "country": "USA"
+      "line1": "123 Elm Street", "line2": "Apt 4B",  <span class="comment">// line2/line3 optional</span>
+      "city": "Chicago", "state": "IL",
+      "postalCode": "60601", "country": "USA"
     }
   ],
   "documents": [
-    {"type": "SSN", "value": "123-45-6789"}
+    {"country": "USA", "type": "SSN", "identifier": "123-45-6789"}  <span class="comment">// optional</span>
   ]
 }</code></pre>
 
-  <p><strong>Response 201</strong> — full customer object with generated <code>id</code> (TSID), <code>createdAt</code>, and <code>updatedAt</code>.</p>
-  <p><strong>Validation rules:</strong> <code>emails</code>, <code>phones</code>, and <code>addresses</code> must each have at least one entry (<code>@NotEmpty</code>). Duplicate email/SSN returns <span class="badge s409">409 Conflict</span>.</p>
+  <p><strong>Response 201</strong> — full Customer object with generated <code>id</code> (TSID), <code>createdAt</code>, and <code>updatedAt</code>.</p>
+  <p>
+    <strong>Validation:</strong> <code>emails</code>, <code>phones</code>, and <code>addresses</code>
+    must each have ≥ 1 entry (<code>@NotEmpty</code>). Duplicate email or SSN returns
+    <span class="badge s409">409</span>.
+  </p>
 
-  <!-- ── GET ── -->
-  <h2 id="api-get" class="anchor">Get Customer by ID</h2>
+  <h2 id="api-get" class="anchor"><span class="h-icon">🔎</span> Get Customer by ID</h2>
   <pre><code>GET /api/v1/customers/814948546554233853
 
 # Response 200
@@ -741,253 +1330,190 @@ Content-Type: application/json
   "updatedAt": "2026-02-26T19:54:34.510778Z"
 }</code></pre>
 
-  <!-- ── LIST ── -->
-  <h2 id="api-list" class="anchor">List Customers (Keyset Pagination)</h2>
-  <pre><code># First page (most recently created first)
+  <h2 id="api-list" class="anchor"><span class="h-icon">📄</span> List Customers (Keyset Pagination)</h2>
+  <pre><code># First page — oldest records first (by TSID ascending)
 GET /api/v1/customers?limit=10
 
-# Next page — pass the id of the last record as cursor
+# Response 200
+{
+  "data": [...],
+  "nextCursor": 814948546554233853,
+  "hasMore": true,
+  "limit": 10
+}
+
+# Next page — pass last ID from previous response as cursor
 GET /api/v1/customers?limit=10&amp;after=814948546554233853</code></pre>
 
   <p>
-    Pagination uses keyset (cursor) style — there is no <code>offset</code> or <code>page</code>
-    parameter. The <code>after</code> value is the numeric TSID of the last record on the current
-    page. When the response contains fewer items than <code>limit</code>, you have reached the end.
+    When <code>hasMore</code> is <code>false</code> you have reached the last page.
+    There is no <code>offset</code> or <code>page</code> parameter — keyset pagination
+    is O(1) regardless of dataset size.
   </p>
 
-  <!-- ── PATCH ── -->
-  <h2 id="api-patch" class="anchor">Partial Update (PATCH)</h2>
+  <h2 id="api-patch" class="anchor"><span class="h-icon">✏️</span> Partial Update (PATCH)</h2>
   <pre><code>PATCH /api/v1/customers/814948546554233853
-Content-Type: application/merge-patch+json
+Content-Type: application/merge-patch+json  <span class="comment">← required; not application/json</span>
 
 {"firstName": "Janet"}
 
-# Response 200 — full updated customer
-# Only firstName changes; all other fields are preserved</code></pre>
+# Response 200 — full customer; only firstName changed</code></pre>
 
   <div class="callout info">
     <div class="label">RFC 7396 JSON Merge Patch</div>
-    Send only the fields you want to change. Fields not present in the patch body are left
-    unchanged. To clear an optional field, send it explicitly as <code>null</code>.
-    Required fields (<code>emails</code>, <code>phones</code>, <code>addresses</code>) cannot be
-    set to empty — that would fail validation on the next full read.
+    Only the fields present in the request body are updated.
+    To clear an optional field send it explicitly as <code>null</code>.
+    Required fields (<code>emails</code>, <code>phones</code>, <code>addresses</code>)
+    cannot be patched to empty — that fails bean validation on the next read.
   </div>
 
-  <!-- ── PUT ── -->
-  <h2 id="api-put" class="anchor">Full Replace (PUT)</h2>
+  <h2 id="api-put" class="anchor"><span class="h-icon">🔄</span> Full Replace (PUT)</h2>
   <pre><code>PUT /api/v1/customers/814948546554233853
 Content-Type: application/json
 
 {
-  "id": 814948546554233853,
+  "id": 814948546554233853,      <span class="comment">// must match path param</span>
   "type": "INDIVIDUAL",
   "firstName": "Janet",
-  "lastName":  "Smith",
+  "lastName": "Smith",
   "emails":    [{"primary": true, "email": "janet@example.com", "type": "PERSONAL"}],
   "phones":    [{"type": "MOBILE", "countryCode": "+1", "number": "5557654321"}],
-  "addresses": [{"type": "HOME", "line1": "456 Oak Ave", "city": "Austin", "state": "TX", "postalCode": "78701", "country": "USA"}],
-  "createdAt": "2026-02-26T19:54:34.510778Z"
+  "addresses": [{"type": "HOME", "line1": "456 Oak Ave", "city": "Austin",
+                 "state": "TX", "postalCode": "78701", "country": "USA"}],
+  "createdAt": "2026-02-26T19:54:34.510778Z"  <span class="comment">// preserve original</span>
 }
 
 # Response 200 — full replaced customer</code></pre>
 
-  <p>
-    PUT replaces the entire document. Include <code>id</code> and <code>createdAt</code> to
-    preserve them. Any field not present will be set to <code>null</code>. A CloudEvent of type
-    <code>Customer::updated</code> is published to Kafka.
-  </p>
-
-  <!-- ── SEARCH ── -->
-  <h2 id="api-search" class="anchor">Search by Email or SSN</h2>
-  <pre><code># Search by email
+  <h2 id="api-search" class="anchor"><span class="h-icon">🔍</span> Search</h2>
+  <pre><code># By email
 GET /api/v1/customers/search?email=jane.smith@example.com
 
-# Search by SSN
+# By SSN
 GET /api/v1/customers/search?ssn=123-45-6789
 
-# Response 200 — single customer object
-# Response 404 — if not found (RFC 7807 Problem Details)</code></pre>
+# Both return: 200 with single Customer object, or 404 Problem Details</code></pre>
 
-  <!-- ── DELETE ── -->
-  <h2 id="api-delete" class="anchor">Delete Customer</h2>
+  <h2 id="api-delete" class="anchor"><span class="h-icon">🗑</span> Delete Customer</h2>
   <pre><code>DELETE /api/v1/customers/814948546554233853
 
-# Response 204 No Content
-# A CloudEvent of type Customer::deleted is published to Kafka</code></pre>
+# 204 No Content — Customer::deleted CloudEvent published to Kafka</code></pre>
 
-  <!-- ── ERRORS ── -->
-  <h2 id="api-errors" class="anchor">Error Responses (RFC 7807)</h2>
-  <p>All errors follow Problem Details format with OTel <code>traceId</code> / <code>spanId</code> injected:</p>
+  <h2 id="api-errors" class="anchor"><span class="h-icon">⚠️</span> Error Responses (RFC 7807)</h2>
   <pre><code>{
-  "type":     "https://api.otel-demo/errors/customer-not-found",
+  "type":     "https://api.example.com/errors/404",
   "title":    "Customer Not Found",
   "status":   404,
   "detail":   "Customer with id 9999999999 not found",
   "instance": "/api/v1/customers/9999999999",
-  "traceId":  "4bf92f3577b34da6a3ce929d0e0e4736",
+  "traceId":  "4bf92f3577b34da6a3ce929d0e0e4736",   <span class="comment">// OTel trace ID</span>
   "spanId":   "00f067aa0ba902b7"
 }</code></pre>
 
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Status</th><th>Condition</th></tr></thead>
     <tbody>
-      <tr><td><span class="badge s400">400</span></td><td>Bean Validation failure (missing required fields)</td></tr>
+      <tr><td><span class="badge s400">400</span></td><td>Bean validation failure — missing required fields</td></tr>
       <tr><td><span class="badge s404">404</span></td><td>Customer not found by ID, email, or SSN</td></tr>
       <tr><td><span class="badge s409">409</span></td><td>Duplicate email or SSN on create</td></tr>
-      <tr><td>415</td><td>Wrong <code>Content-Type</code> (PATCH requires <code>application/merge-patch+json</code>)</td></tr>
-      <tr><td>500</td><td>Internal error (DB down, serialization failure)</td></tr>
+      <tr><td>415</td><td>Wrong Content-Type — PATCH requires <code>application/merge-patch+json</code></td></tr>
+      <tr><td>500</td><td>Internal error (DB unavailable, serialization error)</td></tr>
     </tbody>
   </table>
+  </div>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="load-test" class="anchor">Load Test Script</h2>
+  <h2 id="load-test" class="anchor"><span class="h-icon">⚡</span> Load Test Script</h2>
 
   <p>
     <code>infra/load-test.sh</code> generates sustained traffic across every endpoint,
-    including intentional 404s to populate the error-rate panel in Grafana.
+    including intentional 404s to populate the error-rate Grafana panel.
+    All created records are deleted on completion.
   </p>
 
-  <pre><code># Default: 5 rounds
+  <pre><code># Default: 5 rounds, 0.3s pause between requests
 ./infra/load-test.sh
 
-# Custom rounds and slower pace (more visible in Grafana time-series)
+# 20 rounds, 1 second pause — ~5 min of visible Grafana time-series
 ROUNDS=20 PAUSE=1.0 ./infra/load-test.sh
 
 # Point at a different host
 BASE_URL=http://staging.example.com/api/v1/customers ROUNDS=10 ./infra/load-test.sh</code></pre>
 
-  <p><strong>Each round exercises:</strong></p>
-  <ul>
-    <li><code>POST</code> — create a new customer with random name/city</li>
-    <li><code>GET /{id}</code> — fetch the created customer</li>
-    <li><code>GET ?limit=5</code> — paginated list (first page)</li>
-    <li><code>PATCH /{id}</code> — partial update of <code>firstName</code></li>
-    <li><code>GET /search?email=</code> — search by the created email</li>
-    <li><code>PUT /{id}</code> — full replace</li>
-    <li><code>GET ?limit=5&amp;after=cursor</code> — second page (when ≥2 customers exist)</li>
-    <li><code>GET /9999999999</code> × 2 — intentional 404s for error rate</li>
-    <li><code>DELETE /{id}</code> — cleanup at end</li>
-  </ul>
-
-  <div class="callout info">
-    <div class="label">Tip</div>
-    Run with <code>ROUNDS=20 PAUSE=1.5</code> to get ~5 minutes of traffic — enough to see
-    meaningful time-series shapes in the Grafana latency and request-rate panels.
-  </div>
+  <p><strong>Each round hits:</strong> POST → GET → LIST → PATCH → search → PUT → cursor-paginate → ×2 intentional 404 → DELETE (cleanup)</p>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="e2e-test" class="anchor">End-to-End Customer Lifecycle Test</h2>
+  <h2 id="e2e-test" class="anchor"><span class="h-icon">🧪</span> End-to-End Customer Lifecycle Test</h2>
 
   <p>
-    <code>infra/e2e-test.sh</code> runs a complete customer lifecycle in order,
-    asserting HTTP status codes and JSON field values at every step.
-    Exits 0 on full pass, 1 on any assertion failure.
+    <code>infra/e2e-test.sh</code> runs a complete, ordered lifecycle with 40 assertions.
+    Exits 0 on full pass, 1 on any failure.
   </p>
 
   <pre><code>./infra/e2e-test.sh</code></pre>
 
   <div class="steps">
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>POST /customers</strong> — Create with full payload (email, phone, address, SSN document).
-      Asserts 201, non-empty <code>id</code>, and <code>createdAt</code>.
+      <strong>POST</strong> — Create with email, phone, address, SSN document. Assert 201, non-empty <code>id</code>, and <code>createdAt</code>.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>GET /customers/{id}</strong> — Verify all fields persisted correctly: firstName, lastName,
-      middleName, email, phone number, and city.
+      <strong>GET /{id}</strong> — Fetch and verify all fields: firstName, lastName, middleName, email, phone, city.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>GET /customers?limit=20</strong> — Confirms the new customer appears in the paginated list.
+      <strong>GET ?limit=20</strong> — Verify the paginated list returns the correct <code>data/hasMore/limit</code> envelope and cursor pagination works.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>PATCH /customers/{id}</strong> — Partial update of <code>firstName</code>.
-      Asserts the field changed, <code>lastName</code> is unchanged, and <code>updatedAt</code>
-      advanced beyond <code>createdAt</code>.
+      <strong>PATCH /{id}</strong> — Partial update of <code>firstName</code>. Assert field changed, <code>lastName</code> unchanged, <code>updatedAt</code> advanced.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>GET /customers/{id}</strong> — Re-fetch after PATCH. Confirms the patched value persisted.
+      <strong>GET /{id}</strong> — Re-fetch after PATCH. Confirms patch persisted to DB.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>PUT /customers/{id}</strong> — Full replace with different name, city, phone, and email type.
-      Asserts all replaced fields, and that omitted optional fields are cleared.
+      <strong>PUT /{id}</strong> — Full replace with different name, city, phone. Assert replaced fields and optional fields cleared.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>GET /customers/{id}</strong> — Re-fetch after PUT. Confirms full replacement persisted
-      and <code>middleName</code> was cleared.
+      <strong>GET /{id}</strong> — Re-fetch after PUT. Confirms full replacement persisted, <code>middleName</code> cleared.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>GET /customers/search?email=</strong> — Confirms the customer is findable by email
-      and returns the correct record.
+      <strong>GET /search?email=</strong> — Confirm customer findable by email, returns correct record.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>DELETE /customers/{id}</strong> — Asserts 204 No Content.
+      <strong>DELETE /{id}</strong> — Assert 204 No Content.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>GET /customers/{id}</strong> — Confirms 404 after delete and that the response
-      is RFC 7807 Problem Details format.
+      <strong>GET /{id}</strong> — Confirm 404 after delete; verify RFC 7807 Problem Details format.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>GET /customers/search?email=</strong> — Confirms 404 on search after delete
-      (no stale index entries).
+      <strong>GET /search?email=</strong> — Confirm 404 on search post-delete (no stale index).
     </div></div>
   </div>
-
-  <h3>Sample output</h3>
-  <pre><code>════════════════════════════════════════════════════
-  otel-demo End-to-End Customer Lifecycle Test
-════════════════════════════════════════════════════
-  Target: http://localhost:8080/api/v1/customers
-
-Step 1: POST /customers — create
-  ✓  HTTP status: '201'
-  ✓  id assigned: '814953710350631920'
-  ✓  createdAt set: '2026-02-26T20:25:44.123456Z'
-     ID:        814953710350631920
-     createdAt: 2026-02-26T20:25:44.123456Z
-
-Step 2: GET /customers/814953710350631920 — verify creation
-  ✓  HTTP status: '200'
-  ✓  firstName: 'E2E'
-  ...
-
-Step 9: DELETE /customers/814953710350631920
-  ✓  HTTP status: '204'
-
-Step 10: GET /customers/814953710350631920 — expect 404 after delete
-  ✓  HTTP status: '404'
-  ✓  RFC 7807 type: 'https://api.otel-demo/errors/customer-not-found'
-
-════════════════════════════════════════════════════
-  E2E Test Results
-════════════════════════════════════════════════════
-  Passed:  28 / 28
-  Failed:  0 / 28
-
-  ALL ASSERTIONS PASSED</code></pre>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="manual-curl" class="anchor">Manual curl Examples</h2>
+  <h2 id="manual-curl" class="anchor"><span class="h-icon">💻</span> Manual curl Examples</h2>
 
-  <h3>Create and capture ID in one line</h3>
+  <h3>Create and capture ID</h3>
   <pre><code>ID=$(curl -s -X POST http://localhost:8080/api/v1/customers \
   -H "Content-Type: application/json" \
   -d '{
     "type":"INDIVIDUAL","firstName":"Manual","lastName":"Test",
     "emails":[{"primary":true,"email":"manual@test.com","type":"PERSONAL"}],
     "phones":[{"type":"MOBILE","countryCode":"+1","number":"5550009999"}],
-    "addresses":[{"type":"HOME","line1":"1 St","city":"Chicago","state":"IL","postalCode":"60601","country":"USA"}]
+    "addresses":[{"type":"HOME","line1":"1 St","city":"Chicago",
+                  "state":"IL","postalCode":"60601","country":"USA"}]
   }' | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
 echo "Created: $ID"</code></pre>
 
-  <h3>PATCH — change one field</h3>
+  <h3>PATCH a single field</h3>
   <pre><code>curl -s -X PATCH "http://localhost:8080/api/v1/customers/$ID" \
   -H "Content-Type: application/merge-patch+json" \
-  -d '{"firstName": "Updated"}' | python3 -m json.tool</code></pre>
+  -d '{"firstName":"Updated"}' | python3 -m json.tool</code></pre>
 
   <h3>Search by email</h3>
   <pre><code>curl -s "http://localhost:8080/api/v1/customers/search?email=manual@test.com" \
@@ -997,15 +1523,15 @@ echo "Created: $ID"</code></pre>
   <pre><code># Page 1
 curl -s "http://localhost:8080/api/v1/customers?limit=5" | python3 -m json.tool
 
-# Page 2 (use last id from page 1 as cursor)
-curl -s "http://localhost:8080/api/v1/customers?limit=5&amp;after=$LAST_ID" | python3 -m json.tool</code></pre>
+# Page 2 (use nextCursor from previous response)
+curl -s "http://localhost:8080/api/v1/customers?limit=5&amp;after=$ID" | python3 -m json.tool</code></pre>
 
   <h3>Trigger a 400 validation error</h3>
   <pre><code>curl -s -X POST http://localhost:8080/api/v1/customers \
   -H "Content-Type: application/json" \
   -d '{"type":"INDIVIDUAL","firstName":"No","lastName":"Contacts"}' \
   | python3 -m json.tool
-# → 400 with RFC 7807 problem details listing missing required fields</code></pre>
+# → 400 with RFC 7807 detail listing missing emails/phones/addresses</code></pre>
 
   <h3>Delete</h3>
   <pre><code>curl -s -X DELETE "http://localhost:8080/api/v1/customers/$ID" -w "HTTP %{http_code}\n"
@@ -1014,18 +1540,21 @@ curl -s "http://localhost:8080/api/v1/customers?limit=5&amp;after=$LAST_ID" | py
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="grafana-dashboards" class="anchor">Grafana Dashboards</h2>
+  <h2 id="grafana-dashboards" class="anchor"><span class="h-icon">📊</span> Grafana Dashboards</h2>
 
-  <p>Open <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> — no login required (anonymous admin).</p>
-  <p>Navigate: left sidebar → <strong>Dashboards</strong> (grid icon) → find the two provisioned dashboards.</p>
+  <p>
+    Open <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> — no login required
+    (anonymous admin mode). Navigate: left sidebar → Dashboards (grid icon).
+  </p>
 
+  <div class="table-wrap">
   <table>
-    <thead><tr><th>Dashboard</th><th>UID / URL</th><th>What you'll see</th></tr></thead>
+    <thead><tr><th>Dashboard</th><th>URL</th><th>Content</th></tr></thead>
     <tbody>
       <tr>
         <td><strong>otel-demo — App Overview</strong></td>
         <td><a href="http://localhost:3000/d/app-overview" target="_blank"><code>/d/app-overview</code></a></td>
-        <td>Golden signals, JVM, DB pool, Kafka throughput</td>
+        <td>Golden signals, JVM, DB pool, Kafka</td>
       </tr>
       <tr>
         <td><strong>otel-demo — HTTP Endpoints</strong></td>
@@ -1034,16 +1563,17 @@ curl -s "http://localhost:8080/api/v1/customers?limit=5&amp;after=$LAST_ID" | py
       </tr>
     </tbody>
   </table>
+  </div>
 
   <h3>App Overview panels</h3>
   <ul>
-    <li><strong>Request Rate</strong> — requests/second (stat + sparkline)</li>
-    <li><strong>Error Rate %</strong> — 4xx+5xx as percentage; green → yellow at 1%, red at 5%</li>
-    <li><strong>p50 Latency</strong> — median response time in ms</li>
-    <li><strong>p99 Latency</strong> — 99th percentile; yellow at 500ms, red at 2000ms</li>
-    <li><strong>Request Rate by Endpoint</strong> — time-series per <code>method route</code> pair</li>
+    <li><strong>Request Rate</strong> — req/s stat with sparkline; blue always-on colour</li>
+    <li><strong>Error Rate %</strong> — 4xx+5xx as percentage; green → yellow at 1% → red at 5%</li>
+    <li><strong>p50 Latency</strong> — median response in ms; yellow at 200ms, red at 1000ms</li>
+    <li><strong>p99 Latency</strong> — 99th percentile in ms; yellow at 500ms, red at 2000ms</li>
+    <li><strong>Request Rate by Endpoint</strong> — time-series per <code>METHOD route</code> pair</li>
     <li><strong>Response Status Codes</strong> — 2xx (green), 4xx (yellow), 5xx (red) over time</li>
-    <li><strong>Latency Percentiles</strong> — p50 / p95 / p99 aggregated across all endpoints</li>
+    <li><strong>Latency Percentiles</strong> — p50 / p95 / p99 across all endpoints</li>
     <li><strong>JVM Heap Memory</strong> — used vs committed vs max bytes</li>
     <li><strong>JVM CPU Utilization</strong> — process CPU ratio 0–1</li>
     <li><strong>DB Connection Pool</strong> — HikariCP idle / used / max</li>
@@ -1052,77 +1582,52 @@ curl -s "http://localhost:8080/api/v1/customers?limit=5&amp;after=$LAST_ID" | py
 
   <h3>HTTP Endpoints panels</h3>
   <ul>
-    <li><strong>Endpoint selector</strong> — multi-select dropdown populated from Prometheus label values; choose specific routes or "All"</li>
-    <li><strong>Stats row</strong> — rate, error %, p50, p99 filtered to selected endpoint(s)</li>
+    <li><strong>Endpoint selector</strong> — multi-select dropdown from Prometheus label values; choose specific routes or "All"</li>
+    <li><strong>Stats row</strong> — rate, error %, p50, p99 for selected endpoint(s) only</li>
     <li><strong>Request Rate time-series</strong> — traffic per method+route over time</li>
     <li><strong>Status Code breakdown</strong> — 2xx/4xx/5xx for selected endpoints</li>
-    <li><strong>Latency Percentiles by Endpoint</strong> — p50/p95/p99 as separate lines per route</li>
-    <li><strong>All Endpoints Summary table</strong> — sortable table: Method, Route, req/s, errors/s, p50(ms), p99(ms); p99 and errors columns have colour-coded backgrounds</li>
+    <li><strong>Latency Percentiles by Endpoint</strong> — p50/p95/p99 per route</li>
+    <li><strong>All Endpoints Summary table</strong> — sortable: Method, Route, req/s, errors/s, p50(ms), p99(ms) with colour backgrounds on p99 and errors</li>
   </ul>
 
   <div class="callout info">
-    <div class="label">Time range tip</div>
-    Dashboards default to <strong>Last 30 minutes</strong>. After running the load test change the
-    time picker to <strong>Last 5 minutes</strong> for the sharpest signal. Use <strong>Last 1 hour</strong>
-    to see the full session history.
+    <div class="label">Time range</div>
+    Dashboards default to <strong>Last 30 minutes</strong>. After the load test, switch to
+    <strong>Last 5 minutes</strong> for the sharpest signal.
   </div>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="grafana-explore-traces" class="anchor">Explore — Traces (Tempo)</h2>
+  <h2 id="grafana-explore-traces" class="anchor"><span class="h-icon">🔭</span> Explore — Traces (Tempo)</h2>
 
   <div class="steps">
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Click the <strong>compass icon</strong> (Explore) in the left sidebar.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Select <strong>Tempo</strong> from the datasource dropdown at the top.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Switch to <strong>Search</strong> tab. Set <em>Service Name</em> = <code>otel-demo</code>.
-      Optionally filter by <em>Span Name</em> (e.g. <code>POST /api/v1/customers</code>).
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Click <strong>Run Query</strong>. A table of recent traces appears — each row is one HTTP request.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Click any trace row to open the <strong>flame graph / waterfall view</strong>.
-      You'll see the full span tree: HTTP server → Spring Data → JDBC → Hibernate SQL.
-    </div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Click the <strong>compass icon</strong> (Explore) in the left sidebar.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Select <strong>Tempo</strong> from the datasource dropdown.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Switch to <strong>Search</strong> tab. Set <em>Service Name</em> = <code>otel-demo</code>. Optionally filter by <em>Span Name</em> (e.g. <code>POST /api/v1/customers</code>).</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>Run Query</strong>. A table of recent traces appears — each row is one HTTP request.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Click any trace row to open the <strong>waterfall / flame graph</strong>. You'll see the full span tree: HTTP server → Spring Data → JDBC → Hibernate SQL → Kafka producer.</div></div>
   </div>
 
-  <h3>What a POST /customers trace looks like</h3>
+  <h3>Typical POST /customers span tree</h3>
   <div class="diagram">
- POST /api/v1/customers                                            [0ms … 45ms]
-  └─ CustomerController.createCustomer                            [1ms … 44ms]
-      └─ CustomerService.create                                   [2ms … 43ms]
-          ├─ CustomerRepository.findByEmail (duplicate check)     [2ms … 5ms]
-          │    └─ SELECT * FROM customers WHERE … (JDBC)          [2ms … 4ms]
-          ├─ CustomerRepository.save                              [8ms … 30ms]
-          │    └─ INSERT INTO customers … (JDBC)                  [9ms … 28ms]
-          └─ CustomerEventPublisher.publish (Kafka producer)      [35ms … 42ms]
+<span class="d-box">POST /api/v1/customers                               [0 ms … 45 ms]
+  └─ CustomerController.createCustomer                 [1 ms … 44 ms]
+      └─ CustomerService.create                        [2 ms … 43 ms]
+          ├─ CustomerRepository.findByEmail (dup chk)  [2 ms … 5 ms]
+          │    └─ SELECT * FROM customers (JDBC)       [2 ms … 4 ms]
+          ├─ CustomerRepository.save                   [8 ms … 30 ms]
+          │    └─ INSERT INTO customers (JDBC)         [9 ms … 28 ms]
+          └─ CustomerEventPublisher (Kafka producer)   [35 ms … 42 ms]</span>
   </div>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="grafana-explore-logs" class="anchor">Explore — Logs (Loki)</h2>
+  <h2 id="grafana-explore-logs" class="anchor"><span class="h-icon">📜</span> Explore — Logs (Loki)</h2>
 
   <div class="steps">
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      In Explore, select <strong>Loki</strong> from the datasource dropdown.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Use <strong>Builder</strong> mode. Select label <code>service_name</code> = <code>otel-demo</code>.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Click <strong>Run Query</strong>. Structured log lines appear with <code>trace_id</code> and
-      <code>span_id</code> fields visible in the parsed fields panel.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Filter to errors: append <code>|= "ERROR"</code> or use label filter <code>level = error</code>.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      To jump from a log line to its trace, click the <strong>Tempo</strong> link icon on any log entry
-      that has a non-empty <code>trace_id</code> field.
-    </div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">In Explore, select <strong>Loki</strong> from the datasource dropdown.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Use <strong>Builder</strong> mode. Add label: <code>service_name = otel-demo</code>.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>Run Query</strong>. Structured log lines appear with parsed <code>trace_id</code> and <code>span_id</code> fields.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Filter errors: append <code>| logfmt | level="ERROR"</code> to the query.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Click the <strong>Tempo link icon</strong> on any log line with a non-empty <code>trace_id</code> to jump to that trace.</div></div>
   </div>
 
   <h3>Useful LogQL queries</h3>
@@ -1132,249 +1637,200 @@ curl -s "http://localhost:8080/api/v1/customers?limit=5&amp;after=$LAST_ID" | py
 # Only ERROR level
 {service_name="otel-demo"} | logfmt | level="ERROR"
 
-# Requests with slow DB queries (Hibernate DEBUG logs)
-{service_name="otel-demo"} |= "Hibernate:" | logfmt
+# Logs for a specific trace
+{service_name="otel-demo"} | logfmt | trace_id="4bf92f3577b34da6a3ce929d0e0e4736"
 
-# Find logs for a specific trace
-{service_name="otel-demo"} | logfmt | trace_id="4bf92f3577b34da6a3ce929d0e0e4736"</code></pre>
+# Hibernate SQL statements
+{service_name="otel-demo"} |= "Hibernate:"</code></pre>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="grafana-explore-metrics" class="anchor">Explore — Metrics (Prometheus)</h2>
+  <h2 id="grafana-explore-metrics" class="anchor"><span class="h-icon">📈</span> Explore — Metrics (Prometheus)</h2>
 
   <div class="steps">
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      In Explore, select <strong>Prometheus</strong>.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Type a metric name in the query bar (autocomplete is active).
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Click <strong>Run Query</strong>. Switch between <em>Graph</em> and <em>Table</em> views.
-    </div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">In Explore, select <strong>Prometheus</strong>.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Type a metric name in the query bar — autocomplete is active.</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>Run Query</strong>. Switch between Graph and Table views.</div></div>
   </div>
 
-  <h3>Key metrics to explore</h3>
+  <h3>Key PromQL queries</h3>
   <pre><code># Request rate per endpoint
-sum(rate(otel_http_server_request_duration_seconds_count{exported_job="otel-demo"}[5m]))
-  by (http_request_method, http_route)
+sum(rate(otel_http_server_request_duration_seconds_count{
+    exported_job="otel-demo"}[5m])) by (http_request_method, http_route)
 
 # Error rate %
 100 * sum(rate(otel_http_server_request_duration_seconds_count{
     exported_job="otel-demo", http_response_status_code=~"[45].."}[5m]))
-  / sum(rate(otel_http_server_request_duration_seconds_count{exported_job="otel-demo"}[5m]))
+  / sum(rate(otel_http_server_request_duration_seconds_count{
+    exported_job="otel-demo"}[5m]))
 
-# p99 latency (ms)
+# p99 latency in ms
 histogram_quantile(0.99,
-  sum(rate(otel_http_server_request_duration_seconds_bucket{exported_job="otel-demo"}[5m]))
-  by (le, http_route)) * 1000
+  sum(rate(otel_http_server_request_duration_seconds_bucket{
+      exported_job="otel-demo"}[5m])) by (le, http_route)) * 1000
 
-# JVM heap used (bytes)
+# JVM heap used
 sum(otel_jvm_memory_used_bytes{exported_job="otel-demo", jvm_memory_type="heap"})
 
-# DB connections (used)
-otel_db_client_connections_usage{exported_job="otel-demo", state="used"}
-
-# Kafka producer bytes/sec
-otel_kafka_producer_byte_rate{exported_job="otel-demo"}</code></pre>
+# DB connection pool
+otel_db_client_connections_usage{exported_job="otel-demo", state="used"}</code></pre>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="trace-log-correlation" class="anchor">Trace → Log Correlation</h2>
+  <h2 id="trace-log-correlation" class="anchor"><span class="h-icon">🔗</span> Trace → Log Correlation</h2>
 
   <p>
     Every log line emitted during a request contains the active <code>trace_id</code> and
-    <code>span_id</code> in the MDC (Mapped Diagnostic Context). Grafana Tempo is configured
-    to link directly to matching Loki log lines.
+    <code>span_id</code> via Logback MDC. Grafana Tempo links directly to matching Loki lines.
   </p>
 
   <div class="steps">
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Open a trace in Tempo (Explore → Tempo → Search → click a trace).
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      In the span detail panel, find the <strong>"Logs for this span"</strong> button
-      (or the Loki icon). Click it.
-    </div></div>
-    <div class="step"><div class="step-num"></div><div class="step-body">
-      Grafana opens Explore → Loki pre-filtered to <code>{service_name="otel-demo"} | trace_id="…"</code>.
-      You see exactly the log lines emitted during that span.
-    </div></div>
-  </div>
-
-  <div class="callout warn">
-    <div class="label">Prerequisite for non-empty trace_id in logs</div>
-    The OTel Java agent must be active and instrumentation must not be globally disabled.
-    If <code>trace_id=</code> appears empty in log lines, see <a href="#ts-no-traces">No Traces</a>.
+    <div class="step"><div class="step-num"></div><div class="step-body">Open a trace in Tempo (Explore → Tempo → Search → click a trace).</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">In the span detail panel, click the <strong>Logs for this span</strong> button (Loki icon).</div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">Grafana opens Explore → Loki pre-filtered to <code>{service_name="otel-demo"} | trace_id="…"</code>.</div></div>
   </div>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="ts-no-traces" class="anchor">Troubleshooting — No Traces</h2>
+  <h2 id="ts-no-traces" class="anchor"><span class="h-icon">🩺</span> Troubleshooting — No Traces</h2>
 
-  <h3>Symptom</h3>
-  <p>Tempo search returns no results. Log lines show <code>trace_id= span_id=</code> (empty).</p>
+  <p><strong>Symptom:</strong> Tempo search returns no results; logs show <code>trace_id= span_id=</code> (empty).</p>
 
-  <h3>Diagnosis</h3>
   <pre><code># 1. Is the OTel agent attached?
 ps aux | grep javaagent
-# Should show: -javaagent:opentelemetry-javaagent.jar
+# → must include: -javaagent:opentelemetry-javaagent.jar
 
-# 2. Is the app sending spans? Enable debug logging
+# 2. Debug mode — logs every exported span
 $JAVA_BIN -javaagent:opentelemetry-javaagent.jar \
-  -Dotel.javaagent.debug=true \
-  ...
-# Look for: [opentelemetry-javaagent] INFO ... LoggingSpanExporter - 'POST /api/v1/customers'
+  -Dotel.javaagent.debug=true ...
 
-# 3. Is the Collector receiving them?
-curl http://localhost:55679/debug/tracez
-# Check "Running Spans" or "Completed Spans" counts
+# 3. Collector receiving spans?
+curl http://localhost:55679/debug/tracez   # check Running/Completed spans</code></pre>
 
-# 4. Check Collector logs for export errors
-podman logs otel_collector_demo 2>&1 | grep -i "error\|fail"</code></pre>
-
-  <h3>Common causes</h3>
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Cause</th><th>Fix</th></tr></thead>
     <tbody>
-      <tr>
-        <td><code>otel.instrumentation.common.default-enabled: false</code> in application-local.yml</td>
-        <td>Remove that property entirely from the YAML file</td>
-      </tr>
-      <tr>
-        <td>App started without <code>-javaagent:</code> flag</td>
-        <td>Use <code>./infra/start-app.sh</code> or add the flag manually</td>
-      </tr>
-      <tr>
-        <td>Wrong Java binary — app running on Java 25</td>
-        <td>Use explicit path: <code>$(/usr/libexec/java_home -v 21)/bin/java</code></td>
-      </tr>
-      <tr>
-        <td>OTel Collector not running or wrong endpoint</td>
-        <td>Check <code>docker ps / podman ps</code>; verify <code>-Dotel.exporter.otlp.endpoint=http://localhost:4318</code></td>
-      </tr>
-      <tr>
-        <td>Tempo WAL not flushed yet</td>
-        <td>Wait 30–60 seconds after first request; <code>max_block_duration=30s</code> in tempo.yaml</td>
-      </tr>
+      <tr><td><code>otel.instrumentation.common.default-enabled: false</code> in YAML</td><td>Remove that property entirely</td></tr>
+      <tr><td>App started without <code>-javaagent:</code> flag</td><td>Use <code>./infra/start-app.sh</code> or add flag manually</td></tr>
+      <tr><td>Wrong Java binary (Java 25 on PATH)</td><td>Use <code>$(/usr/libexec/java_home -v 21)/bin/java</code></td></tr>
+      <tr><td>OTel Collector not running</td><td>Check <code>docker ps</code> / <code>podman ps</code>; confirm port 4318 is listening</td></tr>
+      <tr><td>Tempo WAL not flushed</td><td>Wait 30s after first request (<code>max_block_duration=30s</code>)</td></tr>
     </tbody>
   </table>
+  </div>
 
-  <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="ts-no-metrics" class="anchor">Troubleshooting — No Metrics</h2>
-
-  <h3>Diagnosis</h3>
-  <pre><code># 1. Is the Collector exposing metrics?
+  <h2 id="ts-no-metrics" class="anchor"><span class="h-icon">🩺</span> Troubleshooting — No Metrics</h2>
+  <pre><code># 1. Collector exposing metrics?
 curl http://localhost:8889/metrics | grep otel_http
-# Should return Prometheus text format with otel_http_server_request_duration_seconds_*
 
-# 2. Is Prometheus scraping the Collector?
-curl 'http://localhost:9090/api/v1/targets' | python3 -m json.tool | grep -A5 "otel"
-# Should show target health=up
+# 2. Prometheus scraping Collector?
+curl 'http://localhost:9090/api/v1/targets' | python3 -m json.tool | grep -A5 otel
 
-# 3. Does the metric exist in Prometheus?
+# 3. Metric exists?
 curl 'http://localhost:9090/api/v1/query?query=otel_http_server_request_duration_seconds_count'</code></pre>
 
-  <h3>Common causes</h3>
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Cause</th><th>Fix</th></tr></thead>
     <tbody>
-      <tr>
-        <td>No requests made yet</td>
-        <td>Make at least one API call, wait 30s for Prometheus scrape cycle</td>
-      </tr>
-      <tr>
-        <td>Wrong metric name in dashboard</td>
-        <td>Metrics use <code>otel_</code> prefix (OTel agent naming), not <code>http_server_requests_seconds</code> (Micrometer)</td>
-      </tr>
-      <tr>
-        <td>Wrong label: <code>job</code> vs <code>exported_job</code></td>
-        <td>Use <code>exported_job="otel-demo"</code> — the Collector relabels the original <code>job</code> to <code>exported_job</code></td>
-      </tr>
+      <tr><td>No requests made yet</td><td>Make at least one API call; wait 30s for Prometheus scrape</td></tr>
+      <tr><td>Wrong metric name</td><td>Use <code>otel_</code> prefix, not <code>http_server_requests_seconds</code> (Micrometer)</td></tr>
+      <tr><td>Wrong label: <code>job</code> vs <code>exported_job</code></td><td>Filter with <code>exported_job="otel-demo"</code></td></tr>
     </tbody>
   </table>
+  </div>
 
-  <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="ts-no-logs" class="anchor">Troubleshooting — No Logs in Loki</h2>
+  <h2 id="ts-no-logs" class="anchor"><span class="h-icon">🩺</span> Troubleshooting — No Logs in Loki</h2>
+  <pre><code># Labels present?
+curl -s http://localhost:3100/loki/api/v1/labels | python3 -m json.tool
+# → should include "service_name"
 
-  <h3>Diagnosis</h3>
-  <pre><code># 1. Is Loki receiving logs?
-curl -sG http://localhost:3100/loki/api/v1/labels | python3 -m json.tool
-# Should include "service_name" label
-
-# 2. Query directly
+# Query directly
 curl -sG http://localhost:3100/loki/api/v1/query \
   --data-urlencode 'query={service_name="otel-demo"}' \
-  --data-urlencode 'limit=5' | python3 -m json.tool
+  --data-urlencode 'limit=5'</code></pre>
 
-# 3. Check Collector pipeline for log export errors
-podman logs otel_collector_demo 2>&1 | grep -i "loki\|log.*error"</code></pre>
-
-  <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="ts-dashboards-empty" class="anchor">Troubleshooting — Empty Grafana Dashboards</h2>
-
-  <h3>Diagnosis checklist</h3>
+  <h2 id="ts-dashboards-empty" class="anchor"><span class="h-icon">🩺</span> Troubleshooting — Empty Grafana Dashboards</h2>
   <ol>
-    <li>Make at least a few API requests, then wait 30–60 seconds (Prometheus scrape + panel refresh).</li>
-    <li>Confirm the metric exists: <code>curl 'http://localhost:9090/api/v1/query?query=otel_http_server_request_duration_seconds_count'</code></li>
-    <li>Check the dashboard time range — set to <strong>Last 30 minutes</strong> or <strong>Last 5 minutes</strong>.</li>
-    <li>Verify the Prometheus datasource UID: Grafana queries use <code>uid: "prometheus"</code>. Check under <em>Connections → Data Sources</em>.</li>
-    <li>Check the dashboard panel's query in Edit mode — confirm <code>exported_job="otel-demo"</code>.</li>
+    <li>Make at least a few API requests, then wait 30–60 seconds.</li>
+    <li>Confirm metrics exist: <code>curl 'http://localhost:9090/api/v1/query?query=otel_http_server_request_duration_seconds_count'</code></li>
+    <li>Set dashboard time range to <strong>Last 5 minutes</strong> or <strong>Last 30 minutes</strong>.</li>
+    <li>Check the Prometheus datasource UID in Grafana is <code>prometheus</code> (Connections → Data Sources).</li>
   </ol>
 
-  <h3>Dashboard provisioning fails</h3>
-  <pre><code># Check Grafana provisioner logs
-podman logs grafana_demo 2>&1 | grep -i "provision\|error"
+  <h3>Dashboard provisioning errors</h3>
 
-# Typical fix: UIDs in JSON files must match what Grafana has on record
-# If you see "could not resolve dashboards:uid:..." → restart the stack
-./infra/stop.sh --destroy && ./infra/start.sh</code></pre>
+  <div class="tab-group" id="tg-provision">
+    <div class="tab-header">
+      <button class="tab-btn active-docker" data-rt="docker" onclick="switchTab('tg-provision','docker')">🐋 Docker</button>
+      <button class="tab-btn" data-rt="podman" onclick="switchTab('tg-provision','podman')">🦭 Podman</button>
+    </div>
+    <div class="tab-content active" data-rt="docker">
+<pre><code>docker logs grafana_demo 2>&1 | grep -i "provision\|error"
 
-  <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="ts-tempo" class="anchor">Troubleshooting — Tempo Issues</h2>
+# Typical fix — restart with fresh volumes
+docker compose -f infra/docker-compose.yml down -v
+docker compose -f infra/docker-compose.yml up -d</code></pre>
+    </div>
+    <div class="tab-content" data-rt="podman">
+<pre><code>podman logs grafana_demo 2>&1 | grep -i "provision\|error"
 
+# Typical fix — restart with fresh volumes
+podman compose -f infra/docker-compose.yml down -v
+podman compose -f infra/docker-compose.yml up -d</code></pre>
+    </div>
+  </div>
+
+  <h2 id="ts-tempo" class="anchor"><span class="h-icon">🩺</span> Troubleshooting — Tempo Issues</h2>
+
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>empty ring</code> error in logs</td>
-        <td>Tempo <code>latest</code> is v3.x with partition ring — incompatible with single-node config</td>
-        <td>Pin to <code>grafana/tempo:2.7.1</code> in docker-compose.yml (already done)</td>
+        <td><code>empty ring</code> error</td>
+        <td>Tempo <code>latest</code> is v3.x — partition ring incompatible with single-node</td>
+        <td>Pinned to <code>grafana/tempo:2.7.1</code> in docker-compose.yml ✓ already done</td>
       </tr>
       <tr>
         <td><code>field compactor not found</code></td>
-        <td>Tempo v3.x removed <code>compactor</code> from single-node config</td>
-        <td>Remove <code>compactor</code> block from tempo.yaml (already done)</td>
+        <td>Tempo v3.x removed <code>compactor</code> block</td>
+        <td>Removed from tempo.yaml ✓ already done</td>
       </tr>
       <tr>
-        <td>Traces visible in Collector but not in Tempo</td>
-        <td>WAL not flushed — <code>max_block_duration=30s</code> means traces are queryable after 30s</td>
-        <td>Wait 30s after requests, then search in Grafana</td>
+        <td>Spans in Collector, not in Tempo</td>
+        <td>WAL not flushed yet</td>
+        <td>Wait 30s — <code>max_block_duration=30s</code></td>
       </tr>
       <tr>
-        <td><code>/ready</code> returns non-200 for 20+ seconds</td>
-        <td>Normal — ingester ring initialisation takes time</td>
-        <td>Wait; the app can send spans immediately, Tempo buffers them in WAL</td>
+        <td><code>/ready</code> non-200 for 20+ seconds</td>
+        <td>Ingester ring init is slow</td>
+        <td>Normal — wait; app can send spans immediately</td>
       </tr>
     </tbody>
   </table>
+  </div>
 
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="otel-config" class="anchor">OTel Configuration Reference</h2>
+  <h2 id="otel-config" class="anchor"><span class="h-icon">⚙️</span> OTel Configuration Reference</h2>
 
-  <h3>Java agent system properties</h3>
+  <h3>System properties (passed to JVM at startup)</h3>
+
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Property</th><th>Value</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td><code>otel.service.name</code></td><td><code>otel-demo</code></td><td>Appears as service name in Tempo, Loki, Prometheus</td></tr>
+      <tr><td><code>otel.service.name</code></td><td><code>otel-demo</code></td><td>Service name in Tempo, Loki, Prometheus</td></tr>
       <tr><td><code>otel.exporter.otlp.endpoint</code></td><td><code>http://localhost:4318</code></td><td>OTel Collector HTTP endpoint</td></tr>
-      <tr><td><code>otel.exporter.otlp.protocol</code></td><td><code>http/protobuf</code></td><td>HTTP transport (vs gRPC)</td></tr>
+      <tr><td><code>otel.exporter.otlp.protocol</code></td><td><code>http/protobuf</code></td><td>HTTP transport (vs gRPC <code>:4317</code>)</td></tr>
       <tr><td><code>otel.traces.sampler</code></td><td><code>always_on</code></td><td>Sample every request (demo setting)</td></tr>
       <tr><td><code>otel.metrics.exporter</code></td><td><code>otlp</code></td><td>Push metrics via OTLP to Collector</td></tr>
       <tr><td><code>otel.logs.exporter</code></td><td><code>otlp</code></td><td>Push logs via OTLP to Collector</td></tr>
     </tbody>
   </table>
+  </div>
 
   <h3>application-local.yml (Spring profile)</h3>
   <pre><code>otel:
@@ -1396,21 +1852,24 @@ podman logs grafana_demo 2>&1 | grep -i "provision\|error"
       experimental-span-attributes: true
       autoconfigure-interceptor: true
 
-# NOTE: Do NOT add otel.instrumentation.common.default-enabled: false
-#       This disables ALL auto-instrumentation and produces empty trace IDs</code></pre>
+<span class="comment"># ⚠️  Never add: otel.instrumentation.common.default-enabled: false
+#    This disables ALL auto-instrumentation and produces empty trace IDs</span></code></pre>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="metric-names" class="anchor">Prometheus Metric Names</h2>
+  <h2 id="metric-names" class="anchor"><span class="h-icon">📐</span> Prometheus Metric Names</h2>
 
   <div class="callout warn">
-    <div class="label">OTel agent vs Micrometer naming</div>
-    The OTel Java agent uses the <strong>OpenTelemetry semantic conventions</strong> metric names
-    (with <code>otel_</code> prefix after Prometheus relabeling).
-    These are different from Micrometer/Spring Actuator metric names
-    (e.g. <code>http_server_requests_seconds_count</code>).
-    Always use the <code>otel_*</code> names shown below.
+    <div class="label">OTel agent naming differs from Micrometer</div>
+    <p>
+      The OTel Java agent uses OpenTelemetry semantic convention names
+      (prefixed <code>otel_</code> after Prometheus relabeling).
+      These are <strong>different</strong> from Micrometer/Spring Actuator names
+      such as <code>http_server_requests_seconds_count</code>.
+      Always use the <code>otel_*</code> names below.
+    </p>
   </div>
 
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Metric</th><th>Type</th><th>Key Labels</th><th>Description</th></tr></thead>
     <tbody>
@@ -1424,13 +1883,13 @@ podman logs grafana_demo 2>&1 | grep -i "provision\|error"
         <td><code>otel_http_server_request_duration_seconds_sum</code></td>
         <td>counter</td>
         <td>same</td>
-        <td>Total request duration in seconds</td>
+        <td>Cumulative duration in seconds</td>
       </tr>
       <tr>
         <td><code>otel_http_server_request_duration_seconds_bucket</code></td>
         <td>histogram</td>
         <td>same + <code>le</code></td>
-        <td>Request duration histogram buckets (for quantiles)</td>
+        <td>Duration histogram (used for quantile queries)</td>
       </tr>
       <tr>
         <td><code>otel_jvm_memory_used_bytes</code></td>
@@ -1448,7 +1907,7 @@ podman logs grafana_demo 2>&1 | grep -i "provision\|error"
         <td><code>otel_jvm_memory_limit_bytes</code></td>
         <td>gauge</td>
         <td>same</td>
-        <td>JVM memory max (-Xmx)</td>
+        <td>JVM -Xmx limit</td>
       </tr>
       <tr>
         <td><code>otel_jvm_cpu_recent_utilization_ratio</code></td>
@@ -1460,7 +1919,7 @@ podman logs grafana_demo 2>&1 | grep -i "provision\|error"
         <td><code>otel_db_client_connections_usage</code></td>
         <td>gauge</td>
         <td><code>exported_job, state (idle|used)</code></td>
-        <td>HikariCP connection pool state</td>
+        <td>HikariCP connection pool</td>
       </tr>
       <tr>
         <td><code>otel_db_client_connections_max</code></td>
@@ -1476,42 +1935,46 @@ podman logs grafana_demo 2>&1 | grep -i "provision\|error"
       </tr>
     </tbody>
   </table>
+  </div>
 
   <div class="callout info">
-    <div class="label">Why exported_job?</div>
-    Prometheus scrapes metrics from the OTel Collector (not the app directly).
-    The Collector's scrape job is named <code>otel-collector</code>.
-    The original <code>job="otel-demo"</code> label from the app is automatically renamed
-    to <code>exported_job="otel-demo"</code> to avoid collision with Prometheus's own
-    <code>job</code> label. Always filter with <code>exported_job="otel-demo"</code>.
+    <div class="label">Why exported_job, not job?</div>
+    Prometheus scrapes metrics from the <em>OTel Collector</em>, not the app directly.
+    The Collector's scrape job is named <code>otel-collector</code>. The original
+    <code>job="otel-demo"</code> label from the app is automatically renamed to
+    <code>exported_job="otel-demo"</code> to avoid collision with Prometheus's own
+    <code>job</code> label. Always filter using <code>exported_job="otel-demo"</code>.
   </div>
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="key-files" class="anchor">Key Files</h2>
+  <h2 id="key-files" class="anchor"><span class="h-icon">📁</span> Key Files</h2>
 
+  <div class="table-wrap">
   <table>
     <thead><tr><th>File</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td><code>infra/start.sh</code></td><td>Start full observability stack (auto-detects Docker/Podman)</td></tr>
-      <tr><td><code>infra/stop.sh</code></td><td>Stop stack; <code>--destroy</code> to wipe volumes</td></tr>
+      <tr><td><code>infra/start.sh</code></td><td>Start full stack — auto-detects Docker/Podman</td></tr>
+      <tr><td><code>infra/stop.sh</code></td><td>Stop stack; <code>--destroy</code> wipes volumes</td></tr>
       <tr><td><code>infra/start-app.sh</code></td><td>Build &amp; start Spring Boot with OTel agent</td></tr>
-      <tr><td><code>infra/load-test.sh</code></td><td>Sustained load across all endpoints (configurable rounds/pace)</td></tr>
-      <tr><td><code>infra/e2e-test.sh</code></td><td>Full lifecycle test with assertions</td></tr>
-      <tr><td><code>infra/docker-compose.yml</code></td><td>Container stack definition</td></tr>
-      <tr><td><code>infra/otel-collector.yml</code></td><td>OTel Collector pipeline (receivers → processors → exporters)</td></tr>
-      <tr><td><code>infra/tempo.yaml</code></td><td>Tempo single-node config (pinned to 2.7.1)</td></tr>
-      <tr><td><code>infra/prometheus.yml</code></td><td>Prometheus scrape config (scrapes Collector :8889)</td></tr>
-      <tr><td><code>infra/datasources.yaml</code></td><td>Grafana datasources (Prometheus, Tempo, Loki) with trace↔log links</td></tr>
-      <tr><td><code>infra/grafana/dashboards/app-overview.json</code></td><td>Golden signals dashboard JSON</td></tr>
-      <tr><td><code>infra/grafana/dashboards/http-endpoints.json</code></td><td>Per-endpoint drill-down dashboard JSON</td></tr>
-      <tr><td><code>src/main/resources/application-local.yml</code></td><td>Local profile: OTel endpoint, DB, Kafka, Flyway</td></tr>
-      <tr><td><code>opentelemetry-javaagent.jar</code></td><td>OTel Java agent (project root — not committed to git)</td></tr>
+      <tr><td><code>infra/load-test.sh</code></td><td>Sustained load across all endpoints</td></tr>
+      <tr><td><code>infra/e2e-test.sh</code></td><td>Full lifecycle test — 40 assertions, exits 0/1</td></tr>
+      <tr><td><code>infra/docker-compose.yml</code></td><td>Container stack definition (7 services)</td></tr>
+      <tr><td><code>infra/otel-collector.yml</code></td><td>OTel Collector pipeline</td></tr>
+      <tr><td><code>infra/tempo.yaml</code></td><td>Tempo single-node config (pinned 2.7.1)</td></tr>
+      <tr><td><code>infra/prometheus.yml</code></td><td>Prometheus scrape config (Collector :8889)</td></tr>
+      <tr><td><code>infra/datasources.yaml</code></td><td>Grafana datasources with trace↔log links</td></tr>
+      <tr><td><code>infra/grafana/dashboards/app-overview.json</code></td><td>Golden signals dashboard</td></tr>
+      <tr><td><code>infra/grafana/dashboards/http-endpoints.json</code></td><td>Per-endpoint drill-down dashboard</td></tr>
+      <tr><td><code>src/main/resources/application-local.yml</code></td><td>Local profile — OTel, DB, Kafka config</td></tr>
+      <tr><td><code>opentelemetry-javaagent.jar</code></td><td>OTel Java agent (project root — not in Git)</td></tr>
     </tbody>
   </table>
+  </div>
 
   <hr />
-  <p class="muted" style="text-align:center; margin: 2rem 0;">
-    otel-demo — Spring Boot 3.5 · OpenTelemetry Java Agent 2.x · Grafana 11.4 · Tempo 2.7.1
+  <p class="muted" style="text-align:center; margin: 2rem 0; font-size:.8rem;">
+    otel-demo &nbsp;·&nbsp; Spring Boot 3.5 &nbsp;·&nbsp; OTel Java Agent 2.x &nbsp;·&nbsp;
+    Grafana 11.4 &nbsp;·&nbsp; Tempo 2.7.1 &nbsp;·&nbsp; Prometheus &nbsp;·&nbsp; Loki
   </p>
 
 </main>
