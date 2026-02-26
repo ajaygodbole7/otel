@@ -384,6 +384,6 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "otel-demo — App Overview",
-  "uid": "otel-demo-overview",
+  "uid": "app-overview",
   "version": 1
 }

@@ -370,6 +370,6 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "otel-demo — HTTP Endpoints",
-  "uid": "otel-demo-endpoints",
+  "uid": "http-endpoints",
   "version": 1
 }
