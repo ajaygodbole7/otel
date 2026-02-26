@@ -19,6 +19,26 @@ Every piece of work follows this loop, in order:
 
 Never skip steps 4 or 9. Tests must be green both on the feature branch and again after merging to `main`.
 
+## Container Runtime Detection
+
+Integration and repository tests use Testcontainers, which needs a running container daemon. Before running the full test suite, detect which runtime is available and export the required env vars:
+
+```bash
+if docker info &>/dev/null 2>&1; then
+  # Docker is running — no extra env vars needed
+  unset DOCKER_HOST TESTCONTAINERS_RYUK_DISABLED
+elif PODMAN_SOCK=$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null) \
+     && [ -S "$PODMAN_SOCK" ]; then
+  # Podman is running — point Testcontainers at the Podman socket
+  export DOCKER_HOST="unix://$PODMAN_SOCK"
+  export TESTCONTAINERS_RYUK_DISABLED=true
+else
+  echo "ERROR: neither Docker nor Podman is running. Start one before running tests." >&2
+fi
+```
+
+Once the env is set, all `mvn test` commands below work unchanged for both runtimes.
+
 ## Build & Run Commands
 
 ```bash
@@ -26,13 +46,10 @@ Never skip steps 4 or 9. Tests must be green both on the feature branch and agai
 JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package
 
 # Run ALL tests (unit + integration + repository + utility)
-# Requires Podman running; RYUK must be disabled for rootless Podman
-DOCKER_HOST="unix:///var/folders/v6/f7hvgvm506jgnmv6y066ccm80000gn/T/podman/podman-machine-default-api.sock" \
-  TESTCONTAINERS_RYUK_DISABLED=true \
-  JAVA_HOME=$(/usr/libexec/java_home -v 21) \
-  mvn test
+# Set DOCKER_HOST / TESTCONTAINERS_RYUK_DISABLED first (see Container Runtime Detection above)
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test
 
-# Run only unit + utility tests (no Docker/Podman required)
+# Run only unit + utility tests (no container runtime required)
 JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test \
   -Dtest="*UnitTest,*UtilsTest,JsonUtils*,ValidCurrency*"
 
