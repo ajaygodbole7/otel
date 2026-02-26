@@ -14,24 +14,9 @@ otel:
       endpoint: http://localhost:4318
       protocol: http/protobuf
   instrumentation:
-    jdbc:
-      enabled: true
-    spring-web:
-      enabled: true
-    spring-webmvc:
-      enabled: true
-    log4j-appender:
-      enabled: true
-    logback-appender:
-      enabled: true
-    micrometer:
-      enabled: true
     kafka:
-      enabled: true
       experimental-span-attributes: true
       autoconfigure-interceptor: true
-    common:
-      default-enabled: false
 
 
 

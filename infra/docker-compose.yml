@@ -107,7 +107,7 @@ services:
   # --------------------------------------------------
   tempo:
     container_name: tempo_demo
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.7.1
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
