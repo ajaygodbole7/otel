@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>otel-demo — Installation Guide</title>
+  <style>
+    /* ── Light theme tokens ───────────────────────────────────────────────── */
+    :root {
+      --bg:        #f8fafc;
+      --surface:   #ffffff;
+      --surface2:  #f1f5f9;
+      --surface3:  #e8edf5;
+      --border:    #dde3ec;
+      --border2:   #c8d2e0;
+      --accent:    #4338ca;      /* indigo */
+      --accent-lt: #ede9fe;
+      --accent2:   #0f766e;      /* teal */
+      --accent2-lt:#ccfbf1;
+      --warn:      #b45309;      /* amber */
+      --warn-lt:   #fef3c7;
+      --danger:    #b91c1c;      /* red */
+      --danger-lt: #fee2e2;
+      --success:   #15803d;      /* green */
+      --success-lt:#dcfce7;
+      --text:      #0f172a;
+      --text2:     #334155;
+      --muted:     #64748b;
+      --code-bg:   #f0f4f8;
+      --code-text: #1e293b;
+      --link:      #3730a3;
+      --nav-bg:    #1e293b;
+      --nav-text:  #cbd5e1;
+      --nav-hover: #334155;
+      --nav-active:#4338ca;
+      --nav-section:#94a3b8;
+      --docker-tab:#2563eb;
+      --podman-tab:#7c3aed;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 15px;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────────── */
+    .layout { display: flex; min-height: 100vh; }
+
+    nav {
+      width: 268px;
+      min-width: 268px;
+      background: var(--nav-bg);
+      padding: 1.5rem 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    main {
+      flex: 1;
+      padding: 2.5rem 3.5rem 4rem;
+      max-width: 980px;
+      min-width: 0;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────────────── */
+    .nav-logo {
+      display: flex; align-items: center; gap: .5rem;
+      padding: 0 1.2rem 1.2rem;
+      border-bottom: 1px solid #2d3f55;
+      margin-bottom: .8rem;
+    }
+    .nav-logo .logo-text {
+      font-size: .95rem; font-weight: 700;
+      color: #f1f5f9; letter-spacing: -.01em;
+    }
+    .nav-logo .logo-text span { color: #818cf8; }
+    .nav-logo .logo-badge {
+      font-size: .65rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; background: #312e81; color: #a5b4fc;
+      padding: .15em .5em; border-radius: 4px;
+    }
+
+    nav ul { list-style: none; }
+    nav ul li a {
+      display: block;
+      padding: .35rem 1.2rem;
+      color: var(--nav-text);
+      text-decoration: none;
+      font-size: .82rem;
+      transition: background .12s, color .12s;
+      border-left: 3px solid transparent;
+    }
+    nav ul li a:hover {
+      color: #f1f5f9;
+      background: var(--nav-hover);
+      border-left-color: #818cf8;
+    }
+    nav ul li a.active {
+      color: #c7d2fe;
+      background: #1e3050;
+      border-left-color: var(--nav-active);
+    }
+    .nav-section {
+      font-size: .67rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--nav-section);
+      padding: 1rem 1.2rem .35rem;
+    }
+    .nav-back {
+      display: flex; align-items: center; gap: .35rem;
+      padding: .5rem 1.2rem .9rem;
+      border-bottom: 1px solid #2d3f55;
+      margin-bottom: .5rem;
+    }
+    .nav-back a {
+      color: #94a3b8; font-size: .78rem; text-decoration: none;
+      display: flex; align-items: center; gap: .3rem;
+    }
+    .nav-back a:hover { color: #f1f5f9; }
+
+    /* ── Top hero ───────────────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #4338ca 0%, #0f766e 100%);
+      color: #fff;
+      border-radius: 12px;
+      padding: 2rem 2.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .hero h1 { font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: .4rem; }
+    .hero p  { color: rgba(255,255,255,.85); font-size: .95rem; margin: 0; }
+    .hero-tags { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
+    .hero-tag {
+      background: rgba(255,255,255,.18); color: #fff;
+      font-size: .72rem; font-weight: 600; padding: .2em .7em;
+      border-radius: 20px; letter-spacing: .03em;
+    }
+
+    /* ── Typography ─────────────────────────────────────────────────────────── */
+    h2 {
+      font-size: 1.35rem; font-weight: 700; color: var(--accent);
+      margin: 2.5rem 0 1rem;
+      padding-bottom: .45rem;
+      border-bottom: 2px solid var(--border);
+      display: flex; align-items: center; gap: .5rem;
+    }
+    h2 .h-icon { font-size: 1rem; opacity: .7; }
+    h3 {
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      margin: 1.6rem 0 .6rem;
+    }
+    p  { margin-bottom: .85rem; color: var(--text2); }
+    a  { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    ul, ol { margin: .4rem 0 .9rem 1.5rem; color: var(--text2); }
+    li { margin-bottom: .3rem; }
+    strong { color: var(--text); font-weight: 600; }
+    .muted { color: var(--muted); font-size: .85rem; }
+
+    /* ── Code ───────────────────────────────────────────────────────────────── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.1rem 1.3rem;
+      overflow-x: auto;
+      margin: .7rem 0 1.2rem;
+      font-size: .8rem;
+      line-height: 1.7;
+    }
+    code { font-family: "JetBrains Mono","Fira Code","Cascadia Code",Menlo,monospace; }
+    pre code { color: var(--code-text); }
+    :not(pre) > code {
+      background: var(--surface2);
+      color: var(--accent);
+      padding: .1em .4em;
+      border-radius: 4px;
+      font-size: .8em;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Callouts ───────────────────────────────────────────────────────────── */
+    .callout {
+      border-left: 4px solid;
+      border-radius: 0 8px 8px 0;
+      padding: .9rem 1.1rem;
+      margin: 1rem 0 1.3rem;
+      font-size: .875rem;
+    }
+    .callout.info    { border-color: var(--accent);  background: var(--accent-lt);  }
+    .callout.warn    { border-color: var(--warn);    background: var(--warn-lt);    }
+    .callout.success { border-color: var(--success); background: var(--success-lt); }
+    .callout .label  {
+      font-weight: 800; text-transform: uppercase; font-size: .68rem;
+      letter-spacing: .08em; margin-bottom: .3rem;
+    }
+    .callout.info    .label { color: var(--accent); }
+    .callout.warn    .label { color: var(--warn); }
+    .callout.success .label { color: var(--success); }
+    .callout p:last-child { margin-bottom: 0; }
+
+    /* ── Checklist ──────────────────────────────────────────────────────────── */
+    .checklist { list-style: none; margin: .5rem 0 1rem; }
+    .checklist li {
+      display: flex; align-items: flex-start; gap: .6rem;
+      padding: .35rem 0; border-bottom: 1px solid var(--border);
+      font-size: .875rem; color: var(--text2);
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist .chk {
+      width: 1.2rem; height: 1.2rem; border-radius: 50%;
+      background: var(--success-lt); color: var(--success);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem; font-weight: 700; flex-shrink: 0; margin-top: .1rem;
+    }
+    .checklist .chk.opt {
+      background: var(--accent2-lt); color: var(--accent2);
+    }
+
+    /* ── OS choice banner ───────────────────────────────────────────────────── */
+    .runtime-banner {
+      display: flex; gap: .75rem; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: .8rem 1.1rem;
+      font-size: .84rem; margin: .7rem 0 1.2rem;
+    }
+    .runtime-banner .rb-label { font-weight: 700; color: var(--muted); margin-right: .25rem; }
+    .rb-pill {
+      padding: .2em .75em; border-radius: 20px; font-size: .75rem; font-weight: 700; cursor: default;
+    }
+    .rb-pill.docker { background: #dbeafe; color: var(--docker-tab); }
+    .rb-pill.podman { background: #ede9fe; color: var(--podman-tab); }
+    .rb-note { color: var(--muted); font-size: .8rem; }
+
+    /* ── Section separator ──────────────────────────────────────────────────── */
+    hr { border: none; border-top: 2px solid var(--border); margin: 2.5rem 0; }
+    .anchor { scroll-margin-top: 1.5rem; }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 820px) {
+      nav { display: none; }
+      main { padding: 1.5rem; }
+      .hero { padding: 1.5rem; }
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const anchors = document.querySelectorAll('.anchor');
+      const navLinks = document.querySelectorAll('nav a[href^="#"]');
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            navLinks.forEach(l => l.classList.remove('active'));
+            const id = e.target.id;
+            const link = document.querySelector('nav a[href="#'+id+'"]');
+            if (link) link.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-10% 0px -80% 0px' });
+      anchors.forEach(a => observer.observe(a));
+    });
+  </script>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══════════════════════ SIDEBAR NAV ═══════════════════════ -->
+<nav>
+  <div class="nav-logo">
+    <div>
+      <div class="logo-text">otel<span>-demo</span></div>
+    </div>
+    <span class="logo-badge">Install</span>
+  </div>
+
+  <div class="nav-back">
+    <a href="otel-runbook.html">&#8592; Back to Runbook</a>
+  </div>
+
+  <div class="nav-section">Installation</div>
+  <ul>
+    <li><a href="#what-you-need">What You Need</a></li>
+    <li><a href="#install-java">Java 21</a></li>
+    <li><a href="#install-maven">Maven 3.9+</a></li>
+    <li><a href="#install-docker">Docker Desktop</a></li>
+    <li><a href="#install-podman">Podman Desktop</a></li>
+    <li><a href="#install-agent">OTel Java Agent</a></li>
+    <li><a href="#install-verify">Verify Setup</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Installation Guide</h1>
+    <p>
+      Platform-specific setup instructions for every dependency required to run the
+      <strong style="color:#fff">otel-demo</strong> application and its full observability stack.
+    </p>
+    <div class="hero-tags">
+      <span class="hero-tag">Java 21</span>
+      <span class="hero-tag">Maven 3.9+</span>
+      <span class="hero-tag">Docker Desktop</span>
+      <span class="hero-tag">Podman Desktop</span>
+      <span class="hero-tag">OTel Java Agent</span>
+      <span class="hero-tag">macOS · Linux · WSL 2</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="what-you-need" class="anchor"><span class="h-icon">📦</span> What You Need</h2>
+
+  <p>
+    This guide covers macOS (Apple Silicon and Intel) and Linux. Windows users should use
+    WSL 2 with Ubuntu and follow the Linux instructions.
+  </p>
+
+  <div class="runtime-banner">
+    <span class="rb-label">Container runtime:</span>
+    <span class="rb-pill docker">🐋 Docker Desktop</span>
+    <span style="color:var(--muted)">or</span>
+    <span class="rb-pill podman">🦭 Podman Desktop</span>
+    <span class="rb-note">— either works; both sets of commands are shown throughout.</span>
+  </div>
+
+  <ul class="checklist">
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>Java 21 (LTS)</strong> — required to build and run the app. Java 25 is on many machines but is not supported.</div>
+    </li>
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>Maven 3.9+</strong> — build tool. Use system <code>mvn</code>; the bundled <code>./mvnw</code> wrapper is not reliable in this repo.</div>
+    </li>
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>Docker Desktop <em>or</em> Podman Desktop</strong> — runs the full observability stack (7 containers).</div>
+    </li>
+    <li>
+      <span class="chk">✓</span>
+      <div><strong>OTel Java Agent JAR</strong> — placed at the project root as <code>opentelemetry-javaagent.jar</code>. Enables automatic instrumentation without code changes.</div>
+    </li>
+    <li>
+      <span class="chk opt">○</span>
+      <div><strong>curl &amp; python3</strong> — used by the test scripts. Pre-installed on macOS and most Linux distros.</div>
+    </li>
+    <li>
+      <span class="chk opt">○</span>
+      <div><strong>Git</strong> — to clone the repository. Pre-installed on macOS via Xcode Command Line Tools.</div>
+    </li>
+  </ul>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="install-java" class="anchor"><span class="h-icon">☕</span> Install Java 21</h2>
+
+  <p>
+    Eclipse Temurin (formerly AdoptOpenJDK) is the recommended free, open-source Java 21 distribution.
+    Multiple JDK versions can coexist — <code>/usr/libexec/java_home</code> (macOS) selects the right one.
+  </p>
+
+  <h3>macOS — Homebrew</h3>
+  <pre><code># Install Eclipse Temurin 21 via Homebrew Cask
+brew install --cask temurin@21
+
+# Verify
+/usr/libexec/java_home -v 21
+# → /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
+
+$(/usr/libexec/java_home -v 21)/bin/java -version
+# → openjdk version "21.x.x" ...</code></pre>
+
+  <h3>macOS — SDKMAN (alternative)</h3>
+  <pre><code># Install SDKMAN first (if not already installed)
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install and use Temurin 21
+sdk install java 21.0.5-tem
+sdk use java 21.0.5-tem
+java -version</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code>sudo apt-get update
+sudo apt-get install -y wget apt-transport-https gpg
+
+# Add Eclipse Temurin repository
+wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+  | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/adoptium.gpg
+
+echo "deb https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/adoptium.list
+
+sudo apt-get update
+sudo apt-get install -y temurin-21-jdk
+java -version</code></pre>
+
+  <h3>Red Hat / Fedora / Amazon Linux</h3>
+  <pre><code>sudo dnf install java-21-amazon-corretto-devel   # Amazon Linux / Fedora
+# or
+sudo yum install java-21-openjdk-devel            # RHEL / CentOS
+
+java -version</code></pre>
+
+  <div class="callout warn">
+    <div class="label">Multiple Java versions</div>
+    <p>
+      If you have Java 25 (or any other version) installed alongside Java 21, always invoke
+      Maven and the app using the explicit binary path — never just <code>java</code> or
+      <code>JAVA_HOME=... java</code> (that sets the variable but not the PATH binary).
+    </p>
+    <pre style="margin-top:.5rem"><code># ✅ Correct — explicit binary
+$(/usr/libexec/java_home -v 21)/bin/java -version
+
+# ❌ Wrong — JAVA_HOME prefix doesn't change which java is on PATH
+JAVA_HOME=$(/usr/libexec/java_home -v 21) java -version</code></pre>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="install-maven" class="anchor"><span class="h-icon">🔧</span> Install Maven 3.9+</h2>
+
+  <h3>macOS — Homebrew</h3>
+  <pre><code>brew install maven
+
+# Verify
+mvn -version
+# → Apache Maven 3.9.x ...</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code>sudo apt-get install -y maven
+mvn -version</code></pre>
+
+  <h3>Manual install (all platforms)</h3>
+  <pre><code># Download and unpack Maven 3.9 binary
+MVN_VER=3.9.9
+curl -fsSL https://downloads.apache.org/maven/maven-3/${MVN_VER}/binaries/apache-maven-${MVN_VER}-bin.tar.gz \
+  | sudo tar -xz -C /opt
+sudo ln -s /opt/apache-maven-${MVN_VER}/bin/mvn /usr/local/bin/mvn
+
+mvn -version</code></pre>
+
+  <div class="callout info">
+    <div class="label">Always build with Java 21</div>
+    <p>Prefix every Maven command with the Java 21 home:</p>
+    <pre style="margin-top:.5rem"><code>JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests</code></pre>
+    <p>On Linux where you installed Temurin 21 as the only JDK, plain <code>mvn</code> works fine.</p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="install-docker" class="anchor"><span class="h-icon">🐋</span> Install Docker Desktop</h2>
+
+  <p>Docker Desktop bundles the Docker Engine, Docker Compose, and Docker CLI in one installer.</p>
+
+  <h3>macOS</h3>
+  <pre><code># Option A — Homebrew Cask (recommended)
+brew install --cask docker
+
+# Option B — direct download from Docker
+# https://docs.docker.com/desktop/install/mac-install/
+# Download Docker.dmg and drag to Applications</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code># Remove old versions
+sudo apt-get remove docker docker-engine docker.io containerd runc
+
+# Install prerequisites
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker's GPG key and repository
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list
+
+# Install Docker Engine + Compose plugin
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Add your user to the docker group (avoid sudo)
+sudo usermod -aG docker $USER
+newgrp docker</code></pre>
+
+  <h3>Verify Docker</h3>
+  <pre><code>docker version
+docker compose version   # should be 2.x
+
+# Test with hello-world
+docker run --rm hello-world</code></pre>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="install-podman" class="anchor"><span class="h-icon">🦭</span> Install Podman Desktop</h2>
+
+  <p>
+    Podman is a daemonless, rootless container engine. On macOS it runs containers inside a
+    lightweight Linux VM (<em>Podman Machine</em>). <strong>podman-compose</strong> is
+    a separate pip/brew package that implements the Docker Compose spec.
+  </p>
+
+  <h3>macOS — Homebrew</h3>
+  <pre><code># Install Podman engine and compose companion
+brew install podman podman-compose
+
+# Create and start the Podman machine (Linux VM)
+podman machine init --cpus 4 --memory 4096 --disk-size 40
+podman machine start
+
+# Verify
+podman version
+podman-compose version</code></pre>
+
+  <h3>macOS — Podman Desktop GUI</h3>
+  <pre><code># Install Podman Desktop (GUI app — manages the machine for you)
+brew install --cask podman-desktop
+
+# Launch Podman Desktop from Applications, then click "Initialize and Start"
+# Come back here once the machine is running and the socket is active</code></pre>
+
+  <h3>Ubuntu / Debian</h3>
+  <pre><code>sudo apt-get update
+sudo apt-get install -y podman
+
+# Install podman-compose via pip
+pip3 install podman-compose
+
+podman version
+podman-compose version</code></pre>
+
+  <h3>Configure Podman socket for Testcontainers</h3>
+  <pre><code># Get the socket path (macOS)
+podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}'
+# → /var/folders/.../podman.sock  (or ~/.local/share/containers/... on Linux)
+
+# Export for this shell session
+export DOCKER_HOST="unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
+export TESTCONTAINERS_RYUK_DISABLED=true
+
+# Verify — Docker CLI talks to Podman
+docker info | grep "Server Version"</code></pre>
+
+  <div class="callout info">
+    <div class="label">Podman vs Docker for Testcontainers</div>
+    <p>
+      Testcontainers (used in integration tests) requires <code>DOCKER_HOST</code> to point to
+      the Podman socket and <code>TESTCONTAINERS_RYUK_DISABLED=true</code> because Podman
+      rootless mode does not support Ryuk (the Testcontainers resource reaper).
+      The <code>infra/start.sh</code> and test scripts handle this automatically.
+    </p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="install-agent" class="anchor"><span class="h-icon">🔭</span> Install the OTel Java Agent</h2>
+
+  <p>
+    The OpenTelemetry Java agent provides <strong>zero-code automatic instrumentation</strong>
+    for Spring Boot, JDBC, Kafka, and dozens of other frameworks via Java bytecode manipulation.
+    It must be present at the project root as <code>opentelemetry-javaagent.jar</code>.
+  </p>
+
+  <pre><code># Download the latest stable release to the project root
+curl -L -o opentelemetry-javaagent.jar \
+  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
+
+# Verify the file is a valid JAR
+ls -lh opentelemetry-javaagent.jar
+# → -rw-r--r--  1 user  staff  ~55M  opentelemetry-javaagent.jar
+
+java -jar opentelemetry-javaagent.jar 2>&1 | head -5
+# → OpenTelemetry Java agent X.Y.Z</code></pre>
+
+  <div class="callout warn">
+    <div class="label">Not committed to Git</div>
+    The agent JAR is in <code>.gitignore</code>. Every developer must download it locally.
+    A <code>55 MB+</code> binary should not be in source control.
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="install-verify" class="anchor"><span class="h-icon">✅</span> Verify Your Setup</h2>
+
+  <p>Run these checks before proceeding. Every item should pass.</p>
+
+  <pre><code># 1. Java 21
+$(/usr/libexec/java_home -v 21)/bin/java -version 2>&1 | head -1
+# → openjdk version "21.x.x" ...
+
+# 2. Maven
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn -version | head -1
+# → Apache Maven 3.9.x ...
+
+# 3. Container runtime (Docker)
+docker info --format "Docker Engine {{.ServerVersion}}" 2>/dev/null
+# → Docker Engine 27.x
+
+# 3. Container runtime (Podman — if using Podman instead)
+podman version --format "Podman {{.Version}}" 2>/dev/null
+# → Podman 5.x
+
+# 4. compose
+docker compose version   # Docker
+# or
+podman-compose version   # Podman
+
+# 5. OTel agent present
+ls -lh opentelemetry-javaagent.jar
+# → file exists, ~55 MB
+
+# 6. Build the project (first time — downloads dependencies)
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests -q
+ls target/otel-*-SNAPSHOT.jar
+# → target/otel-0.0.1-SNAPSHOT.jar</code></pre>
+
+  <div class="callout success">
+    <div class="label">All green?</div>
+    If all six checks pass you are ready to start the stack.
+    Return to the <a href="otel-runbook.html#start-infra">Runbook → Start the Observability Infrastructure</a>.
+  </div>
+
+</main>
+</div>
+</body>
+</html>

@@ -474,20 +474,16 @@
 
   <div class="nav-section">Overview</div>
   <ul>
+    <li><a href="#quick-start">Quick Start</a></li>
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#signal-flow">Signal Flow</a></li>
     <li><a href="#services">Services &amp; Ports</a></li>
   </ul>
 
-  <div class="nav-section">Installation</div>
+  <div class="nav-section">Prerequisites</div>
   <ul>
-    <li><a href="#install-overview">What You Need</a></li>
-    <li><a href="#install-java">Java 21</a></li>
-    <li><a href="#install-maven">Maven</a></li>
-    <li><a href="#install-docker">Docker</a></li>
-    <li><a href="#install-podman">Podman</a></li>
-    <li><a href="#install-agent">OTel Agent</a></li>
-    <li><a href="#install-verify">Verify Setup</a></li>
+    <li><a href="#prerequisites">Tools Required</a></li>
+    <li><a href="installation.html" target="_blank">Installation Guide &#8599;</a></li>
   </ul>
 
   <div class="nav-section">Running the Stack</div>
@@ -495,6 +491,12 @@
     <li><a href="#start-infra">1 — Start Infra</a></li>
     <li><a href="#start-app">2 — Start App</a></li>
     <li><a href="#verify-signals">3 — Verify Signals</a></li>
+  </ul>
+
+  <div class="nav-section">Load &amp; Dashboards</div>
+  <ul>
+    <li><a href="#load-test">Generate Load</a></li>
+    <li><a href="#grafana-dashboards">Grafana Dashboards</a></li>
   </ul>
 
   <div class="nav-section">API Reference</div>
@@ -510,20 +512,18 @@
     <li><a href="#api-errors">Error Responses</a></li>
   </ul>
 
-  <div class="nav-section">Load &amp; E2E Testing</div>
+  <div class="nav-section">Testing</div>
   <ul>
-    <li><a href="#load-test">Load Test Script</a></li>
     <li><a href="#e2e-test">E2E Lifecycle Test</a></li>
-    <li><a href="#manual-curl">Manual curl Examples</a></li>
+    <li><a href="#manual-curl">Manual curl</a></li>
   </ul>
 
-  <div class="nav-section">Grafana</div>
+  <div class="nav-section">Grafana Explore</div>
   <ul>
-    <li><a href="#grafana-dashboards">Dashboards</a></li>
-    <li><a href="#grafana-explore-traces">Explore — Traces</a></li>
-    <li><a href="#grafana-explore-logs">Explore — Logs</a></li>
-    <li><a href="#grafana-explore-metrics">Explore — Metrics</a></li>
-    <li><a href="#trace-log-correlation">Trace → Log Correlation</a></li>
+    <li><a href="#grafana-explore-traces">Traces</a></li>
+    <li><a href="#grafana-explore-logs">Logs</a></li>
+    <li><a href="#grafana-explore-metrics">Metrics</a></li>
+    <li><a href="#trace-log-correlation">Trace &#8594; Log Correlation</a></li>
   </ul>
 
   <div class="nav-section">Troubleshooting</div>
@@ -565,6 +565,51 @@
       <span class="hero-tag">Docker / Podman</span>
     </div>
   </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="quick-start" class="anchor"><span class="h-icon">⚡</span> Quick Start</h2>
+
+  <p class="subtitle">From zero to populated Grafana dashboards in four steps.</p>
+
+  <div class="steps">
+    <div class="step"><div class="step-num"></div><div class="step-body">
+      <strong>Start the observability stack</strong>
+      <pre><code>./infra/start.sh</code></pre>
+      <p style="margin:0">Auto-detects Docker or Podman. Starts all 7 containers and waits for each to be healthy.</p>
+    </div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">
+      <strong>Build and start the app</strong>
+      <pre><code>./infra/start-app.sh</code></pre>
+      <p style="margin:0">Compiles with Java 21, attaches the OTel Java agent, waits for <code>/actuator/health → UP</code>.</p>
+    </div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">
+      <strong>Generate load (populates dashboards)</strong>
+      <pre><code>./infra/load-test.sh</code></pre>
+      <p style="margin:0">Hits every API endpoint for 5 rounds — produces traces, metrics, and structured logs with correlated trace IDs.</p>
+    </div></div>
+    <div class="step"><div class="step-num"></div><div class="step-body">
+      <strong>Open Grafana</strong>
+      <pre><code>open http://localhost:3000   # macOS
+xdg-open http://localhost:3000   # Linux</code></pre>
+      <p style="margin:.3rem 0 .4rem">Navigate to <strong>Dashboards</strong>. Set time range to <strong>Last 5 minutes</strong>.</p>
+      <ul style="margin:.2rem 0 0 1.2rem">
+        <li><a href="http://localhost:3000/d/app-overview" target="_blank"><strong>App Overview</strong></a> — request rate, error rate, latency percentiles, JVM heap, DB pool, Kafka</li>
+        <li><a href="http://localhost:3000/d/http-endpoints" target="_blank"><strong>HTTP Endpoints</strong></a> — per-endpoint drill-down with multi-select route filter</li>
+      </ul>
+    </div></div>
+  </div>
+
+  <div class="callout success">
+    <div class="label">What you'll see</div>
+    <p>
+      Real OTel metrics from the Java agent driving live panels. Traces visible in
+      <strong>Explore → Tempo</strong>. Structured logs with non-empty <code>trace_id</code>
+      and <code>span_id</code> in <strong>Explore → Loki</strong>. Click any <em>Tempo link</em>
+      icon on a log line to jump directly to the corresponding trace.
+    </p>
+  </div>
+
+  <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
   <h2 id="architecture" class="anchor"><span class="h-icon">🏗</span> Architecture</h2>
@@ -690,315 +735,62 @@
   <hr />
 
   <!-- ════════════════════════════════════════════════════════
-       INSTALLATION
+       PREREQUISITES
        ════════════════════════════════════════════════════ -->
-  <h2 id="install-overview" class="anchor"><span class="h-icon">📦</span> Installation — What You Need</h2>
+  <h2 id="prerequisites" class="anchor"><span class="h-icon">📦</span> Prerequisites</h2>
 
   <p>
-    This guide covers macOS (Apple Silicon and Intel) and Linux. Windows users should use
-    WSL 2 with Ubuntu and follow the Linux instructions.
+    Install the following tools before starting. For platform-specific instructions (macOS, Linux, WSL 2),
+    see the <a href="installation.html" target="_blank"><strong>Installation Guide</strong></a>.
   </p>
 
-  <div class="runtime-banner">
-    <span class="rb-label">Container runtime:</span>
-    <span class="rb-pill docker">🐋 Docker Desktop</span>
-    <span style="color:var(--muted)">or</span>
-    <span class="rb-pill podman">🦭 Podman Desktop</span>
-    <span class="rb-note">— either works; both sets of commands are shown throughout.</span>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Tool</th><th>Version</th><th>Purpose</th><th>Quick install (macOS)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Java 21</strong></td>
+        <td>21 (LTS)</td>
+        <td>Build and run the Spring Boot app</td>
+        <td><code>brew install --cask temurin@21</code></td>
+      </tr>
+      <tr>
+        <td><strong>Maven</strong></td>
+        <td>3.9+</td>
+        <td>Build tool</td>
+        <td><code>brew install maven</code></td>
+      </tr>
+      <tr>
+        <td><strong>Docker Desktop</strong> <em>or</em> <strong>Podman Desktop</strong></td>
+        <td>Docker 27+ / Podman 5+</td>
+        <td>Runs the 7-container observability stack</td>
+        <td><code>brew install --cask docker</code></td>
+      </tr>
+      <tr>
+        <td><strong>OTel Java Agent</strong></td>
+        <td>latest stable</td>
+        <td>Auto-instrumentation (traces, metrics, logs)</td>
+        <td>See <a href="installation.html#install-agent" target="_blank">Installation Guide</a></td>
+      </tr>
+      <tr>
+        <td>curl, python3</td>
+        <td>any</td>
+        <td>Used by test scripts</td>
+        <td>Pre-installed on macOS</td>
+      </tr>
+    </tbody>
+  </table>
   </div>
-
-  <ul class="checklist">
-    <li>
-      <span class="chk">✓</span>
-      <div><strong>Java 21 (LTS)</strong> — required to build and run the app. Java 25 is on many machines but is not supported.</div>
-    </li>
-    <li>
-      <span class="chk">✓</span>
-      <div><strong>Maven 3.9+</strong> — build tool. Use system <code>mvn</code>; the bundled <code>./mvnw</code> wrapper is not reliable in this repo.</div>
-    </li>
-    <li>
-      <span class="chk">✓</span>
-      <div><strong>Docker Desktop <em>or</em> Podman Desktop</strong> — runs the full observability stack (7 containers).</div>
-    </li>
-    <li>
-      <span class="chk">✓</span>
-      <div><strong>OTel Java Agent JAR</strong> — placed at the project root as <code>opentelemetry-javaagent.jar</code>. Enables automatic instrumentation without code changes.</div>
-    </li>
-    <li>
-      <span class="chk opt">○</span>
-      <div><strong>curl &amp; python3</strong> — used by the test scripts. Pre-installed on macOS and most Linux distros.</div>
-    </li>
-    <li>
-      <span class="chk opt">○</span>
-      <div><strong>Git</strong> — to clone the repository. Pre-installed on macOS via Xcode Command Line Tools.</div>
-    </li>
-  </ul>
-
-  <!-- ── Java 21 ── -->
-  <h2 id="install-java" class="anchor"><span class="h-icon">☕</span> Install Java 21</h2>
-
-  <p>
-    Eclipse Temurin (formerly AdoptOpenJDK) is the recommended free, open-source Java 21 distribution.
-    Multiple JDK versions can coexist — <code>/usr/libexec/java_home</code> (macOS) selects the right one.
-  </p>
-
-  <h3>macOS — Homebrew</h3>
-  <pre><code># Install Eclipse Temurin 21 via Homebrew Cask
-brew install --cask temurin@21
-
-# Verify
-/usr/libexec/java_home -v 21
-# → /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
-
-$(/usr/libexec/java_home -v 21)/bin/java -version
-# → openjdk version "21.x.x" ...</code></pre>
-
-  <h3>macOS — SDKMAN (alternative)</h3>
-  <pre><code># Install SDKMAN first (if not already installed)
-curl -s "https://get.sdkman.io" | bash
-source "$HOME/.sdkman/bin/sdkman-init.sh"
-
-# Install and use Temurin 21
-sdk install java 21.0.5-tem
-sdk use java 21.0.5-tem
-java -version</code></pre>
-
-  <h3>Ubuntu / Debian</h3>
-  <pre><code>sudo apt-get update
-sudo apt-get install -y wget apt-transport-https gpg
-
-# Add Eclipse Temurin repository
-wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
-  | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/adoptium.gpg
-
-echo "deb https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" \
-  | sudo tee /etc/apt/sources.list.d/adoptium.list
-
-sudo apt-get update
-sudo apt-get install -y temurin-21-jdk
-java -version</code></pre>
-
-  <h3>Red Hat / Fedora / Amazon Linux</h3>
-  <pre><code>sudo dnf install java-21-amazon-corretto-devel   # Amazon Linux / Fedora
-# or
-sudo yum install java-21-openjdk-devel            # RHEL / CentOS
-
-java -version</code></pre>
-
-  <div class="callout warn">
-    <div class="label">Multiple Java versions</div>
-    <p>
-      If you have Java 25 (or any other version) installed alongside Java 21, always invoke
-      Maven and the app using the explicit binary path — never just <code>java</code> or
-      <code>JAVA_HOME=... java</code> (that sets the variable but not the PATH binary).
-    </p>
-    <pre style="margin-top:.5rem"><code># ✅ Correct — explicit binary
-$(/usr/libexec/java_home -v 21)/bin/java -version
-
-# ❌ Wrong — JAVA_HOME prefix doesn't change which java is on PATH
-JAVA_HOME=$(/usr/libexec/java_home -v 21) java -version</code></pre>
-  </div>
-
-  <!-- ── Maven ── -->
-  <h2 id="install-maven" class="anchor"><span class="h-icon">🔧</span> Install Maven 3.9+</h2>
-
-  <h3>macOS — Homebrew</h3>
-  <pre><code>brew install maven
-
-# Verify
-mvn -version
-# → Apache Maven 3.9.x ...</code></pre>
-
-  <h3>Ubuntu / Debian</h3>
-  <pre><code>sudo apt-get install -y maven
-mvn -version</code></pre>
-
-  <h3>Manual install (all platforms)</h3>
-  <pre><code># Download and unpack Maven 3.9 binary
-MVN_VER=3.9.9
-curl -fsSL https://downloads.apache.org/maven/maven-3/${MVN_VER}/binaries/apache-maven-${MVN_VER}-bin.tar.gz \
-  | sudo tar -xz -C /opt
-sudo ln -s /opt/apache-maven-${MVN_VER}/bin/mvn /usr/local/bin/mvn
-
-mvn -version</code></pre>
 
   <div class="callout info">
-    <div class="label">Always build with Java 21</div>
-    <p>Prefix every Maven command with the Java 21 home:</p>
-    <pre style="margin-top:.5rem"><code>JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests</code></pre>
-    <p>On Linux where you installed Temurin 21 as the only JDK, plain <code>mvn</code> works fine.</p>
-  </div>
-
-  <!-- ── Docker ── -->
-  <h2 id="install-docker" class="anchor"><span class="h-icon">🐋</span> Install Docker Desktop</h2>
-
-  <p>Docker Desktop bundles the Docker Engine, Docker Compose, and Docker CLI in one installer.</p>
-
-  <h3>macOS</h3>
-  <pre><code># Option A — Homebrew Cask (recommended)
-brew install --cask docker
-
-# Option B — direct download from Docker
-# https://docs.docker.com/desktop/install/mac-install/
-# Download Docker.dmg and drag to Applications</code></pre>
-
-  <h3>Ubuntu / Debian</h3>
-  <pre><code># Remove old versions
-sudo apt-get remove docker docker-engine docker.io containerd runc
-
-# Install prerequisites
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg lsb-release
-
-# Add Docker's GPG key and repository
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
-  | sudo tee /etc/apt/sources.list.d/docker.list
-
-# Install Docker Engine + Compose plugin
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-# Add your user to the docker group (avoid sudo)
-sudo usermod -aG docker $USER
-newgrp docker</code></pre>
-
-  <h3>Verify Docker</h3>
-  <pre><code>docker version
-docker compose version   # should be 2.x
-
-# Test with hello-world
-docker run --rm hello-world</code></pre>
-
-  <!-- ── Podman ── -->
-  <h2 id="install-podman" class="anchor"><span class="h-icon">🦭</span> Install Podman Desktop</h2>
-
-  <p>
-    Podman is a daemonless, rootless container engine. On macOS it runs containers inside a
-    lightweight Linux VM (<em>Podman Machine</em>). <strong>podman-compose</strong> is
-    a separate pip/brew package that implements the Docker Compose spec.
-  </p>
-
-  <h3>macOS — Homebrew</h3>
-  <pre><code># Install Podman engine and compose companion
-brew install podman podman-compose
-
-# Create and start the Podman machine (Linux VM)
-podman machine init --cpus 4 --memory 4096 --disk-size 40
-podman machine start
-
-# Verify
-podman version
-podman-compose version</code></pre>
-
-  <h3>macOS — Podman Desktop GUI</h3>
-  <pre><code># Install Podman Desktop (GUI app — manages the machine for you)
-brew install --cask podman-desktop
-
-# Launch Podman Desktop from Applications, then click "Initialize and Start"
-# Come back here once the machine is running and the socket is active</code></pre>
-
-  <h3>Ubuntu / Debian</h3>
-  <pre><code>sudo apt-get update
-sudo apt-get install -y podman
-
-# Install podman-compose via pip
-pip3 install podman-compose
-
-podman version
-podman-compose version</code></pre>
-
-  <h3>Configure Podman socket for Testcontainers</h3>
-  <pre><code># Get the socket path (macOS)
-podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}'
-# → /var/folders/.../podman.sock  (or ~/.local/share/containers/... on Linux)
-
-# Export for this shell session
-export DOCKER_HOST="unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
-export TESTCONTAINERS_RYUK_DISABLED=true
-
-# Verify — Docker CLI talks to Podman
-docker info | grep "Server Version"</code></pre>
-
-  <div class="callout info">
-    <div class="label">Podman vs Docker for Testcontainers</div>
+    <div class="label">Detailed setup instructions</div>
     <p>
-      Testcontainers (used in integration tests) requires <code>DOCKER_HOST</code> to point to
-      the Podman socket and <code>TESTCONTAINERS_RYUK_DISABLED=true</code> because Podman
-      rootless mode does not support Ryuk (the Testcontainers resource reaper).
-      The <code>infra/start.sh</code> and test scripts handle this automatically.
+      Step-by-step installation for every tool across macOS, Ubuntu, Fedora, and Linux is in the
+      <a href="installation.html" target="_blank">Installation Guide</a> — including the Java 21
+      multi-version gotcha, Maven prefix, Podman socket configuration, and the full verify checklist.
     </p>
-  </div>
-
-  <!-- ── OTel Agent ── -->
-  <h2 id="install-agent" class="anchor"><span class="h-icon">🔭</span> Install the OTel Java Agent</h2>
-
-  <p>
-    The OpenTelemetry Java agent provides <strong>zero-code automatic instrumentation</strong>
-    for Spring Boot, JDBC, Kafka, and dozens of other frameworks via Java bytecode manipulation.
-    It must be present at the project root as <code>opentelemetry-javaagent.jar</code>.
-  </p>
-
-  <pre><code># Download the latest stable release to the project root
-curl -L -o opentelemetry-javaagent.jar \
-  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
-
-# Verify the file is a valid JAR
-ls -lh opentelemetry-javaagent.jar
-# → -rw-r--r--  1 user  staff  ~55M  opentelemetry-javaagent.jar
-
-java -jar opentelemetry-javaagent.jar 2>&1 | head -5
-# → OpenTelemetry Java agent X.Y.Z</code></pre>
-
-  <div class="callout warn">
-    <div class="label">Not committed to Git</div>
-    The agent JAR is in <code>.gitignore</code>. Every developer must download it locally.
-    A <code>55 MB+</code> binary should not be in source control.
-  </div>
-
-  <!-- ── Verify ── -->
-  <h2 id="install-verify" class="anchor"><span class="h-icon">✅</span> Verify Your Setup</h2>
-
-  <p>Run these checks before proceeding. Every item should pass.</p>
-
-  <pre><code># 1. Java 21
-$(/usr/libexec/java_home -v 21)/bin/java -version 2>&1 | head -1
-# → openjdk version "21.x.x" ...
-
-# 2. Maven
-JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn -version | head -1
-# → Apache Maven 3.9.x ...
-
-# 3. Container runtime (Docker)
-docker info --format "Docker Engine {{.ServerVersion}}" 2>/dev/null
-# → Docker Engine 27.x
-
-# 3. Container runtime (Podman — if using Podman instead)
-podman version --format "Podman {{.Version}}" 2>/dev/null
-# → Podman 5.x
-
-# 4. compose
-docker compose version   # Docker
-# or
-podman-compose version   # Podman
-
-# 5. OTel agent present
-ls -lh opentelemetry-javaagent.jar
-# → file exists, ~55 MB
-
-# 6. Build the project (first time — downloads dependencies)
-JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests -q
-ls target/otel-*-SNAPSHOT.jar
-# → target/otel-0.0.1-SNAPSHOT.jar</code></pre>
-
-  <div class="callout success">
-    <div class="label">All green?</div>
-    If all six checks pass you are ready to start the stack. Continue to the next section.
   </div>
 
   <hr />
@@ -1258,6 +1050,87 @@ for s in streams[:2]:
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="load-test" class="anchor"><span class="h-icon">⚡</span> Load Test Script</h2>
+
+  <p>
+    <code>infra/load-test.sh</code> generates sustained traffic across every endpoint,
+    including intentional 404s to populate the error-rate Grafana panel.
+    All created records are deleted on completion.
+  </p>
+
+  <pre><code># Default: 5 rounds, 0.3s pause between requests
+./infra/load-test.sh
+
+# 20 rounds, 1 second pause — ~5 min of visible Grafana time-series
+ROUNDS=20 PAUSE=1.0 ./infra/load-test.sh
+
+# Point at a different host
+BASE_URL=http://staging.example.com/api/v1/customers ROUNDS=10 ./infra/load-test.sh</code></pre>
+
+  <p><strong>Each round hits:</strong> POST → GET → LIST → PATCH → search → PUT → cursor-paginate → ×2 intentional 404 → DELETE (cleanup)</p>
+
+  <hr />
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <h2 id="grafana-dashboards" class="anchor"><span class="h-icon">📊</span> Grafana Dashboards</h2>
+
+  <p>
+    Open <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> — no login required
+    (anonymous admin mode). Navigate: left sidebar → Dashboards (grid icon).
+  </p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Dashboard</th><th>URL</th><th>Content</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>otel-demo — App Overview</strong></td>
+        <td><a href="http://localhost:3000/d/app-overview" target="_blank"><code>/d/app-overview</code></a></td>
+        <td>Golden signals, JVM, DB pool, Kafka</td>
+      </tr>
+      <tr>
+        <td><strong>otel-demo — HTTP Endpoints</strong></td>
+        <td><a href="http://localhost:3000/d/http-endpoints" target="_blank"><code>/d/http-endpoints</code></a></td>
+        <td>Per-endpoint drill-down with multi-select filter</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>App Overview panels</h3>
+  <ul>
+    <li><strong>Request Rate</strong> — req/s stat with sparkline; blue always-on colour</li>
+    <li><strong>Error Rate %</strong> — 4xx+5xx as percentage; green → yellow at 1% → red at 5%</li>
+    <li><strong>p50 Latency</strong> — median response in ms; yellow at 200ms, red at 1000ms</li>
+    <li><strong>p99 Latency</strong> — 99th percentile in ms; yellow at 500ms, red at 2000ms</li>
+    <li><strong>Request Rate by Endpoint</strong> — time-series per <code>METHOD route</code> pair</li>
+    <li><strong>Response Status Codes</strong> — 2xx (green), 4xx (yellow), 5xx (red) over time</li>
+    <li><strong>Latency Percentiles</strong> — p50 / p95 / p99 across all endpoints</li>
+    <li><strong>JVM Heap Memory</strong> — used vs committed vs max bytes</li>
+    <li><strong>JVM CPU Utilization</strong> — process CPU ratio 0–1</li>
+    <li><strong>DB Connection Pool</strong> — HikariCP idle / used / max</li>
+    <li><strong>Kafka Producer Throughput</strong> — bytes/s per topic</li>
+  </ul>
+
+  <h3>HTTP Endpoints panels</h3>
+  <ul>
+    <li><strong>Endpoint selector</strong> — multi-select dropdown from Prometheus label values; choose specific routes or "All"</li>
+    <li><strong>Stats row</strong> — rate, error %, p50, p99 for selected endpoint(s) only</li>
+    <li><strong>Request Rate time-series</strong> — traffic per method+route over time</li>
+    <li><strong>Status Code breakdown</strong> — 2xx/4xx/5xx for selected endpoints</li>
+    <li><strong>Latency Percentiles by Endpoint</strong> — p50/p95/p99 per route</li>
+    <li><strong>All Endpoints Summary table</strong> — sortable: Method, Route, req/s, errors/s, p50(ms), p99(ms) with colour backgrounds on p99 and errors</li>
+  </ul>
+
+  <div class="callout info">
+    <div class="label">Time range</div>
+    Dashboards default to <strong>Last 30 minutes</strong>. After the load test, switch to
+    <strong>Last 5 minutes</strong> for the sharpest signal.
+  </div>
+
+  <hr />
+
+  <!-- ════════════════════════════════════════════════════════ -->
   <h2 id="api-endpoints" class="anchor"><span class="h-icon">📋</span> API Endpoints Reference</h2>
 
   <p>Base path: <code>http://localhost:8080/api/v1/customers</code></p>
@@ -1426,28 +1299,6 @@ GET /api/v1/customers/search?ssn=123-45-6789
   <hr />
 
   <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="load-test" class="anchor"><span class="h-icon">⚡</span> Load Test Script</h2>
-
-  <p>
-    <code>infra/load-test.sh</code> generates sustained traffic across every endpoint,
-    including intentional 404s to populate the error-rate Grafana panel.
-    All created records are deleted on completion.
-  </p>
-
-  <pre><code># Default: 5 rounds, 0.3s pause between requests
-./infra/load-test.sh
-
-# 20 rounds, 1 second pause — ~5 min of visible Grafana time-series
-ROUNDS=20 PAUSE=1.0 ./infra/load-test.sh
-
-# Point at a different host
-BASE_URL=http://staging.example.com/api/v1/customers ROUNDS=10 ./infra/load-test.sh</code></pre>
-
-  <p><strong>Each round hits:</strong> POST → GET → LIST → PATCH → search → PUT → cursor-paginate → ×2 intentional 404 → DELETE (cleanup)</p>
-
-  <hr />
-
-  <!-- ════════════════════════════════════════════════════════ -->
   <h2 id="e2e-test" class="anchor"><span class="h-icon">🧪</span> End-to-End Customer Lifecycle Test</h2>
 
   <p>
@@ -1538,63 +1389,6 @@ curl -s "http://localhost:8080/api/v1/customers?limit=5&amp;after=$ID" | python3
 # → HTTP 204</code></pre>
 
   <hr />
-
-  <!-- ════════════════════════════════════════════════════════ -->
-  <h2 id="grafana-dashboards" class="anchor"><span class="h-icon">📊</span> Grafana Dashboards</h2>
-
-  <p>
-    Open <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> — no login required
-    (anonymous admin mode). Navigate: left sidebar → Dashboards (grid icon).
-  </p>
-
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Dashboard</th><th>URL</th><th>Content</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><strong>otel-demo — App Overview</strong></td>
-        <td><a href="http://localhost:3000/d/app-overview" target="_blank"><code>/d/app-overview</code></a></td>
-        <td>Golden signals, JVM, DB pool, Kafka</td>
-      </tr>
-      <tr>
-        <td><strong>otel-demo — HTTP Endpoints</strong></td>
-        <td><a href="http://localhost:3000/d/http-endpoints" target="_blank"><code>/d/http-endpoints</code></a></td>
-        <td>Per-endpoint drill-down with multi-select filter</td>
-      </tr>
-    </tbody>
-  </table>
-  </div>
-
-  <h3>App Overview panels</h3>
-  <ul>
-    <li><strong>Request Rate</strong> — req/s stat with sparkline; blue always-on colour</li>
-    <li><strong>Error Rate %</strong> — 4xx+5xx as percentage; green → yellow at 1% → red at 5%</li>
-    <li><strong>p50 Latency</strong> — median response in ms; yellow at 200ms, red at 1000ms</li>
-    <li><strong>p99 Latency</strong> — 99th percentile in ms; yellow at 500ms, red at 2000ms</li>
-    <li><strong>Request Rate by Endpoint</strong> — time-series per <code>METHOD route</code> pair</li>
-    <li><strong>Response Status Codes</strong> — 2xx (green), 4xx (yellow), 5xx (red) over time</li>
-    <li><strong>Latency Percentiles</strong> — p50 / p95 / p99 across all endpoints</li>
-    <li><strong>JVM Heap Memory</strong> — used vs committed vs max bytes</li>
-    <li><strong>JVM CPU Utilization</strong> — process CPU ratio 0–1</li>
-    <li><strong>DB Connection Pool</strong> — HikariCP idle / used / max</li>
-    <li><strong>Kafka Producer Throughput</strong> — bytes/s per topic</li>
-  </ul>
-
-  <h3>HTTP Endpoints panels</h3>
-  <ul>
-    <li><strong>Endpoint selector</strong> — multi-select dropdown from Prometheus label values; choose specific routes or "All"</li>
-    <li><strong>Stats row</strong> — rate, error %, p50, p99 for selected endpoint(s) only</li>
-    <li><strong>Request Rate time-series</strong> — traffic per method+route over time</li>
-    <li><strong>Status Code breakdown</strong> — 2xx/4xx/5xx for selected endpoints</li>
-    <li><strong>Latency Percentiles by Endpoint</strong> — p50/p95/p99 per route</li>
-    <li><strong>All Endpoints Summary table</strong> — sortable: Method, Route, req/s, errors/s, p50(ms), p99(ms) with colour backgrounds on p99 and errors</li>
-  </ul>
-
-  <div class="callout info">
-    <div class="label">Time range</div>
-    Dashboards default to <strong>Last 30 minutes</strong>. After the load test, switch to
-    <strong>Last 5 minutes</strong> for the sharpest signal.
-  </div>
 
   <!-- ════════════════════════════════════════════════════════ -->
   <h2 id="grafana-explore-traces" class="anchor"><span class="h-icon">🔭</span> Explore — Traces (Tempo)</h2>
