@@ -431,22 +431,6 @@ class CustomerServiceUnitTest {
   }
 
   // -----------------------------------------------------------------------
-  // findBySSN tests
-  // -----------------------------------------------------------------------
-
-  @Test
-  @DisplayName("findBySSN - repository returns empty - throws CustomerNotFoundException")
-  void findBySSN_repositoryReturnsEmpty_throwsCustomerNotFoundException() {
-    when(customerRepository.findBySSN("000-00-0000")).thenReturn(Optional.empty());
-
-    assertThatThrownBy(() -> customerService.findBySSN("000-00-0000"))
-        .isInstanceOf(CustomerNotFoundException.class)
-        .hasMessageContaining("No customer found with SSN provided");
-
-    verify(customerRepository).findBySSN("000-00-0000");
-  }
-
-  // -----------------------------------------------------------------------
   // Patch Tests
   // -----------------------------------------------------------------------
 

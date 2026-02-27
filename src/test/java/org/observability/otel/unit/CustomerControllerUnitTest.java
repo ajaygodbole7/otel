@@ -188,19 +188,6 @@ class CustomerControllerUnitTest {
         .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
   }
 
-  private RequestBuilder buildSearchBySsnRequest(String ssn) {
-    return get(customersUrl + "/search")
-        .param("ssn", ssn)
-        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
-  }
-
-  private RequestBuilder buildSearchBothRequest(String email, String ssn) {
-    return get(customersUrl + "/search")
-        .param("email", email)
-        .param("ssn", ssn)
-        .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
-  }
-
   private RequestBuilder buildSearchRequest() {
     return get(customersUrl + "/search")
         .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON);
@@ -660,52 +647,20 @@ class CustomerControllerUnitTest {
   }
 
   @Test
-  @DisplayName("Should return 200 with customer when searching by SSN")
-  void shouldReturnCustomerWhenSearchingBySSN() throws Exception {
-    when(customerService.findBySSN("123-45-6789")).thenReturn(basicCustomer);
-
-    MvcResult result = performRequest(buildSearchBySsnRequest("123-45-6789"));
-
-    assertJsonResponse(result, HttpStatus.OK);
-    Customer responseCustomer = parseResponse(result, Customer.class);
-    assertThat(responseCustomer).usingRecursiveComparison().isEqualTo(basicCustomer);
-    verify(customerService).findBySSN("123-45-6789");
-  }
-
-  @Test
-  @DisplayName("Should return 404 Problem Detail when searching by non-existent SSN")
-  void shouldReturn404WhenSearchingByMissingSSN() throws Exception {
-    String errorMessage = "No customer found with SSN provided";
-    when(customerService.findBySSN("000-00-0000"))
-        .thenThrow(new CustomerNotFoundException(errorMessage));
-
-    MvcResult result = performRequest(buildSearchBySsnRequest("000-00-0000"));
-
-    assertErrorResponse(result, HttpStatus.NOT_FOUND, "Customer Not Found", errorMessage);
-    verify(customerService).findBySSN("000-00-0000");
-  }
-
-  @Test
-  @DisplayName("Should return 400 when both email and ssn are provided")
-  void shouldReturn400WhenBothEmailAndSsnProvided() throws Exception {
-    MvcResult result = performRequest(buildSearchBothRequest("a@b.com", "123"));
-
-    assertResponse(result, HttpStatus.BAD_REQUEST);
-    assertThat(result.getResponse().getContentAsString())
-        .contains("Exactly one of 'email' or 'ssn' must be provided");
-    verify(customerService, never()).findByEmail(any());
-    verify(customerService, never()).findBySSN(any());
-  }
-
-  @Test
-  @DisplayName("Should return 400 when neither email nor ssn is provided")
-  void shouldReturn400WhenNeitherEmailNorSsnProvided() throws Exception {
+  @DisplayName("Should return 400 when email parameter is missing")
+  void shouldReturn400WhenEmailIsMissing() throws Exception {
     MvcResult result = performRequest(buildSearchRequest());
 
     assertResponse(result, HttpStatus.BAD_REQUEST);
-    assertThat(result.getResponse().getContentAsString())
-        .contains("Exactly one of 'email' or 'ssn' must be provided");
     verify(customerService, never()).findByEmail(any());
-    verify(customerService, never()).findBySSN(any());
+  }
+
+  @Test
+  @DisplayName("Should return 400 when email parameter is blank")
+  void shouldReturn400WhenEmailIsBlank() throws Exception {
+    MvcResult result = performRequest(buildSearchByEmailRequest("   "));
+
+    assertResponse(result, HttpStatus.BAD_REQUEST);
+    verify(customerService, never()).findByEmail(any());
   }
 }

@@ -23,13 +23,6 @@ public interface CustomerRepository extends JpaRepository<CustomerEntity, Long> 
       ")", nativeQuery = true)
   Optional<CustomerEntity> findByEmail(@Param("email") String email);
 
-  @Query(value = "SELECT * FROM customers " +
-      "WHERE EXISTS (" +
-      "  SELECT 1 FROM jsonb_array_elements(customer_json->'documents') AS doc " +
-      "  WHERE doc->>'type' = 'SSN' AND doc->>'identifier' = :ssn" +
-      ")", nativeQuery = true)
-  Optional<CustomerEntity> findBySSN(@Param("ssn") String ssn);
-
   @Query("SELECT c FROM CustomerEntity c WHERE (:afterId IS NULL OR c.id > :afterId) ORDER BY c.id ASC")
   List<CustomerEntity> findNextPage(@Param("afterId") Long afterId, Limit limit);
 

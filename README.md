@@ -29,7 +29,7 @@ Repository (CustomerRepository)
 PostgreSQL (JSONB column)
 ```
 
-The full `Customer` domain object (with nested `Address`, `Email`, `Phone`, `Document`) is stored as a single JSONB blob in PostgreSQL. GIN indexes support fast JSONB path queries for email and SSN lookups. IDs are TSID (time-sortable 63-bit integers).
+The full `Customer` domain object (with nested `Address`, `Email`, `Phone`) is stored as a single JSONB blob in PostgreSQL. A GIN index supports fast JSONB path queries for email lookups. IDs are TSID (time-sortable 63-bit integers).
 
 Every mutating operation (create, update, patch, delete) publishes a `Customer::created / Customer::updated / Customer::deleted` CloudEvent to Kafka.
 
@@ -107,7 +107,6 @@ Base path: `/api/v1/customers`
 | `DELETE` | `/customers/{id}` | Delete customer |
 | `GET` | `/customers?limit=N&after=<cursor>` | Keyset pagination |
 | `GET` | `/customers/search?email=<email>` | Search by email |
-| `GET` | `/customers/search?ssn=<ssn>` | Search by SSN |
 
 All error responses use RFC 7807 Problem Details format (`application/problem+json`).
 
@@ -160,10 +159,9 @@ curl "http://localhost:8080/api/v1/customers?limit=20"
 curl "http://localhost:8080/api/v1/customers?limit=20&after={lastId}"
 ```
 
-### Search by email or SSN
+### Search by email
 ```bash
 curl "http://localhost:8080/api/v1/customers/search?email=john.doe%40example.com"
-curl "http://localhost:8080/api/v1/customers/search?ssn=123-45-6789"
 ```
 
 Add `-v` to any command to see full request/response headers.

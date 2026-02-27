@@ -166,39 +166,6 @@ class CustomerRepositoryTest {
   }
 
   @Test
-  @DisplayName("Should find customer by SSN using JSONB path query")
-  void shouldFindCustomerBySSN() throws JsonProcessingException {
-    // Given
-    var customer = CustomerTestDataProvider.createFullCustomer();
-    var entity = convertToEntity(customer);
-    customerRepository.saveAndFlush(entity);
-
-    // Extract the SSN from the saved customer
-    var ssn = customer.documents().stream()
-        .filter(doc -> "SSN".equals(doc.type()))
-        .findFirst()
-        .orElseThrow(() -> new IllegalStateException("SSN not found"))
-        .identifier();
-
-    log.debug("Saved customer JSON: {}", entity.getCustomerJson());
-    log.debug("Querying for SSN: {}", ssn);
-
-    // When
-    var retrieved = customerRepository.findBySSN(ssn);
-
-    // Then
-    assertThat(retrieved).isPresent();
-    retrieved.ifPresent(found -> {
-      var foundCustomer = convertToCustomer(found);
-      assertThat(foundCustomer.documents())
-          .extracting(Document::identifier)
-          .contains(ssn);
-    });
-  }
-
-
-
-  @Test
   @DisplayName("Should delete customer and confirm absence")
   void shouldDeleteCustomer() throws JsonProcessingException {
     // Given

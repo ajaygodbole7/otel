@@ -95,7 +95,6 @@ public class CustomerService {
           .emails(customer.emails())
           .phones(customer.phones())
           .addresses(customer.addresses())
-          .documents(customer.documents())
           .createdAt(now)
           .updatedAt(now)
           .build();
@@ -153,7 +152,6 @@ public class CustomerService {
           .emails(inboundCustomer.emails())
           .phones(inboundCustomer.phones())
           .addresses(inboundCustomer.addresses())
-          .documents(inboundCustomer.documents())
           .createdAt(existingEntity.getCreatedAt())
           .updatedAt(Instant.now())
           .build();
@@ -258,28 +256,6 @@ public class CustomerService {
     } catch (Exception e) {
       log.error("Error finding customer by email", e);
       return translateAndThrow(e, "Error retrieving customer by email");
-    }
-  }
-
-  /**
-   * Find a customer by their SSN.
-   *
-   * @param ssn The SSN to search for
-   * @return The Customer object if found
-   * @throws CustomerNotFoundException if no customer is found with the given SSN
-   */
-  public Customer findBySSN(String ssn) {
-    log.info("Finding customer by SSN");
-    try {
-      Customer customer = customerRepository.findBySSN(ssn)
-          .map(this::convertToCustomer)
-          .orElseThrow(() -> new CustomerNotFoundException("No customer found with SSN provided"));
-      log.info("Successfully found customer by SSN");
-      log.debug("Retrieved customer details: {}", customer);
-      return customer;
-    } catch (Exception e) {
-      log.error("Error finding customer by SSN", e);
-      return translateAndThrow(e, "Error retrieving customer by SSN");
     }
   }
 

@@ -20,7 +20,6 @@ public record Customer(
     @Valid @NotEmpty List<Address> addresses,
     @Valid @NotEmpty List<Email> emails,
     @Valid @NotEmpty List<Phone> phones,
-    @Valid List<Document> documents,
     Instant createdAt,
     Instant updatedAt
 ) {}
@@ -46,10 +45,4 @@ record Phone(
     @NotBlank @Size(max = 50) String type,
     @NotBlank @Size(max = 5) String countryCode,
     @NotBlank @Pattern(regexp = "^[0-9\\-\\+\\(\\) ]{7,20}$") String number
-) {}
-
-record Document(
-    @NotBlank @Size(max = 100) String country,
-    @NotBlank @Size(max = 50) String type,
-    @NotBlank @Size(max = 100) String identifier
 ) {}

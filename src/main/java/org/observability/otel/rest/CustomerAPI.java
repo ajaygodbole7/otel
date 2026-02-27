@@ -11,8 +11,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
 import org.observability.otel.domain.Customer;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -105,14 +105,13 @@ public interface CustomerAPI {
       @RequestBody String patchJson);
 
   @GetMapping(value = CUSTOMERS + "/search", produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_PROBLEM_JSON_VALUE})
-  @Operation(summary = "Search customer by email or SSN")
+  @Operation(summary = "Search customer by email")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Customer found successfully"),
-        @ApiResponse(responseCode = "400", description = "Exactly one search parameter required"),
+        @ApiResponse(responseCode = "400", description = "email parameter is required"),
         @ApiResponse(responseCode = "404", description = "Customer not found")
       })
   ResponseEntity<Customer> searchCustomer(
-      @RequestParam(required = false) String email,
-      @RequestParam(required = false) String ssn);
+      @RequestParam @NotBlank String email);
 }
