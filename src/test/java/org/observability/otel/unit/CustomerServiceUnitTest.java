@@ -145,6 +145,34 @@ class CustomerServiceUnitTest {
   }
 
   @Test
+  @DisplayName("Should throw CustomerConflictException when creating customer with an already-used email")
+  void shouldThrowConflictOnDuplicateEmailDuringCreate() throws Exception {
+    Customer customerWithEmail = CustomerTestDataProvider.createFullCustomer();
+
+    // Extract the primary email using JsonNode (Email is package-private, can't call .email() directly)
+    com.fasterxml.jackson.databind.JsonNode emailsNode =
+        objectMapper.valueToTree(customerWithEmail).get("emails");
+    String primaryEmail = java.util.stream.StreamSupport
+        .stream(emailsNode.spliterator(), false)
+        .filter(e -> e.get("primary") != null && e.get("primary").asBoolean())
+        .map(e -> e.get("email").asText())
+        .findFirst()
+        .orElseThrow();
+
+    CustomerEntity conflicting = CustomerEntity.builder()
+        .id(99999L)
+        .customerJson("{}")
+        .build();
+
+    when(customerRepository.existsById(any())).thenReturn(false);
+    when(customerRepository.findByEmail(primaryEmail)).thenReturn(Optional.of(conflicting));
+
+    assertThatThrownBy(() -> customerService.create(customerWithEmail))
+        .isInstanceOf(CustomerConflictException.class)
+        .hasMessageContaining("already exists");
+  }
+
+  @Test
   @DisplayName("Should throw CustomerServiceException and not publish event when saveAndFlush fails on create")
   void shouldThrowServiceExceptionAndNotPublishEventWhenCreateSaveFails() {
     when(customerRepository.saveAndFlush(any(CustomerEntity.class)))
