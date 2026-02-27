@@ -1,6 +1,5 @@
 package org.observability.otel.domain;
 
-import io.hypersistence.tsid.TSID;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,9 +39,8 @@ public class CustomerEntity {
 
   @PrePersist
   void prePersist() {
-    if (id == null) {
-      id = TSID.Factory.getTsid().toLong();
-    }
+    // ID is always set by CustomerService before save; never generated here.
+    // Timestamp guards are a safety net against accidental builder omission.
     if (createdAt == null) {
       createdAt = Instant.now();
     }
