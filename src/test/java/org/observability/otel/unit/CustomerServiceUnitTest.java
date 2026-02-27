@@ -453,6 +453,24 @@ class CustomerServiceUnitTest {
   }
 
   @Test
+  @DisplayName("patch() - id in patch body is ignored; entity id is preserved")
+  void shouldIgnoreIdInPatchBody() throws Exception {
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(basicCustomer.id())
+        .customerJson(objectMapper.writeValueAsString(basicCustomer))
+        .build();
+
+    when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
+    when(customerRepository.saveAndFlush(any(CustomerEntity.class))).thenAnswer(i -> i.getArgument(0));
+
+    String patchJson = "{\"id\": 999999, \"firstName\":\"PatchedName\"}";
+    Customer result = customerService.patch(basicCustomer.id(), patchJson);
+
+    assertThat(result.id()).isEqualTo(basicCustomer.id());
+    assertThat(result.firstName()).isEqualTo("PatchedName");
+  }
+
+  @Test
   @DisplayName("patch() - applies nested emails change")
   void shouldPatchEmails() throws Exception {
     CustomerEntity entity = CustomerEntity.builder()

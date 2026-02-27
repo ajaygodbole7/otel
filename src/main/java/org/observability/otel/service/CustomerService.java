@@ -219,8 +219,9 @@ public class CustomerService {
       log.debug("Applied patch to customer ID: {}", id);
 
       // H4: createdAt comes from JSONB — no entity-column drift
+      // Always pin id to the entity's DB id — never trust id from the patch body
       Customer customerToSave = Customer.builder()
-          .id(mergedCustomer.id())
+          .id(existingEntity.getId())
           .type(mergedCustomer.type())
           .firstName(mergedCustomer.firstName())
           .lastName(mergedCustomer.lastName())
