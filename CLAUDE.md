@@ -100,7 +100,7 @@ REST (CustomerController) → Service (CustomerService) → Repository (Customer
 
 **Key architectural decisions:**
 
-- **JSONB storage**: `CustomerEntity` stores the full customer domain object as a JSONB column in PostgreSQL. The domain record `Customer` (with nested `Address`, `Email`, `Phone`, `Document` records) is serialized/deserialized via Jackson `ObjectMapper` in the service layer.
+- **JSONB storage**: `CustomerEntity` stores the full customer domain object as a JSONB column in PostgreSQL. The domain record `Customer` (with nested `Address`, `Email`, `Phone` records) is serialized/deserialized via Jackson `ObjectMapper` in the service layer.
 
 - **TSID IDs**: `CustomerEntity` uses Hypersistence TSID (`@GeneratedValue(generator = "tsid")`) for time-sortable, distributed-friendly 63-bit IDs.
 
@@ -140,11 +140,11 @@ JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn <goal>
 | `d4b8770` | JSR-380 Bean Validation on Customer domain records |
 | `95e935e` | Keyset pagination — `GET /customers?limit=N&after=<cursor>` |
 | `654a0fa` | PATCH endpoint — `PATCH /customers/{id}` (RFC 7396 JSON Merge Patch) |
-| `7a3653d` | Search endpoints — `GET /customers/search?email=` and `?ssn=` |
+| `7a3653d` | Search endpoint — `GET /customers/search?email=` |
 
 ## Important Patterns
 
-- **Package-private nested records**: `Email`, `Phone`, `Address`, `Document` are package-private inside `org.observability.otel.domain`. Tests outside that package must use `objectMapper.valueToTree()` + `JsonNode` to read their fields — never call `.email()` / `.primary()` directly from outside the package.
+- **Package-private nested records**: `Email`, `Phone`, `Address` are package-private inside `org.observability.otel.domain`. Tests outside that package must use `objectMapper.valueToTree()` + `JsonNode` to read their fields — never call `.email()` / `.primary()` directly from outside the package.
 - **Not-found mock pattern**: In unit tests, mock "customer not found" as `.thenThrow(new EmptyResultDataAccessException(...))` — NOT `.thenReturn(Optional.empty())`. The service wraps the `orElseThrow` path through `translateAndThrow`.
 - **`translateAndThrow`**: `CustomerNotFoundException` has a pass-through case. All other unknown exceptions fall to the default case → `CustomerServiceException`.
 - **Keyset pagination**: `getAllCustomers()` no longer exists — use `getCustomers(Long afterId, int limit)` instead.

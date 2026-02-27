@@ -543,13 +543,13 @@
             <li style="font-size:13px; font-weight:400; color:#374151;">RFC 7807 Problem Details on every error response, with the OTel trace ID embedded</li>
             <li style="font-size:13px; font-weight:400; color:#374151;">RFC 7396 JSON Merge Patch for partial updates</li>
             <li style="font-size:13px; font-weight:400; color:#374151;">Cursor-based keyset pagination — no OFFSET degradation</li>
-            <li style="font-size:13px; font-weight:400; color:#374151;">Email and SSN search endpoints backed by GIN indexes</li>
+            <li style="font-size:13px; font-weight:400; color:#374151;">Email search endpoint backed by GIN index</li>
           </ul>
         </li>
         <li style="font-size:14px; font-weight:700; color:#0f172a;">Data Storage
           <ul style="margin-top:6px; padding-left:18px; list-style:disc; display:flex; flex-direction:column; gap:4px;">
             <li style="font-size:13px; font-weight:400; color:#374151;">PostgreSQL JSONB — the full <code>Customer</code> record stored as a single JSONB column per row</li>
-            <li style="font-size:13px; font-weight:400; color:#374151;">GIN indexes on JSONB for fast email and SSN lookups</li>
+            <li style="font-size:13px; font-weight:400; color:#374151;">GIN index on JSONB for fast email lookup</li>
             <li style="font-size:13px; font-weight:400; color:#374151;">TSID — 63-bit, time-sortable, distributed-safe IDs with no coordinator needed</li>
             <li style="font-size:13px; font-weight:400; color:#374151;">Flyway migrations manage the schema</li>
           </ul>
@@ -686,7 +686,7 @@
         <div>
           <div class="card" style="border-top:3px solid #2563eb;">
             <h3>Customer <span style="font-weight:400; color:#94a3b8; font-size:12px;">— Java Record</span></h3>
-            <p>The domain object. Immutable Java record with nested value records: <code>Address</code>, <code>Email</code>, <code>Phone</code>, <code>Document</code>. Used by the REST API and service layer. All fields carry <strong>JSR-380 Bean Validation</strong> constraints (<code>@NotBlank</code>, <code>@Email</code>, <code>@Size</code>, etc.) — Spring validates at the controller boundary before any service logic executes.</p>
+            <p>The domain object. Immutable Java record with nested value records: <code>Address</code>, <code>Email</code>, <code>Phone</code>. Used by the REST API and service layer. All fields carry <strong>JSR-380 Bean Validation</strong> constraints (<code>@NotBlank</code>, <code>@Email</code>, <code>@Size</code>, etc.) — Spring validates at the controller boundary before any service logic executes.</p>
           </div>
           <div class="card" style="border-top:3px solid #ea580c;">
             <h3>CustomerEntity <span style="font-weight:400; color:#94a3b8; font-size:12px;">— JPA Entity</span></h3>
@@ -842,7 +842,7 @@ entity.<span class="fn">setData</span>(objectMapper
         </div>
         <div class="card" style="border-top:3px solid #7c3aed;">
           <h3>Search Endpoints</h3>
-          <p><code>GET /customers/search?email=</code> and <code>?ssn=</code> — exact-match lookups backed by the GIN index on the JSONB column. Returns the customer or 404.</p>
+          <p><code>GET /customers/search?email=</code> — exact-match lookup backed by the GIN index on the JSONB column. Returns the customer or 404.</p>
         </div>
       </div>
       <div class="alert alert-info">
@@ -1097,7 +1097,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
           <h3>Unit Tests — 94 tests</h3>
           <p>Mock-based, zero I/O. <code>@ExtendWith(MockitoExtension.class)</code> strict mode — unused stubs fail the test. Four classes:</p>
           <ul>
-            <li><code>CustomerServiceUnitTest</code> — 30 tests: create, read, update, delete, patch, search by email/SSN, and every error path</li>
+            <li><code>CustomerServiceUnitTest</code> — tests: create, read, update, delete, patch, search by email, and every error path</li>
             <li><code>CustomerControllerUnitTest</code> — 40 tests: HTTP status, response body, validation rejection, pagination, search via MockMvc</li>
             <li><code>CustomerEventPublisherUnitTest</code> — 12 tests: CloudEvent field values, JSON serialization, Kafka send failure and timeout paths</li>
             <li><code>ExceptionTranslatorUnitTest</code> — 12 tests: every RFC 7807 handler mapping, 4xx and 5xx</li>
@@ -1112,7 +1112,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
             <li><strong>② Database state</strong> — <code>await().untilAsserted()</code> reads the JSONB row and compares with <code>usingRecursiveComparison()</code></li>
             <li><strong>③ Kafka event</strong> — a real <code>KafkaConsumer</code> polls the <code>customer-events</code> topic and asserts the <code>CloudEvent</code> type, subject, and full customer payload</li>
           </ul>
-          <p style="margin-top:6px;">Scenarios: POST/PUT/DELETE with event verification, PATCH with GET confirmation, search by email and SSN, 409 conflict, keyset pagination cursor.</p>
+          <p style="margin-top:6px;">Scenarios: POST/PUT/DELETE with event verification, PATCH with GET confirmation, search by email, 409 conflict, keyset pagination cursor.</p>
         </div>
 
         <div class="card" style="border-top:3px solid #ea580c;">
@@ -1120,7 +1120,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
           <p><code>@DataJpaTest</code> against a dedicated PostgreSQL container — validates the persistence layer in complete isolation from the service:</p>
           <ul>
             <li>JSONB round-trip: save <code>Customer</code> as JSON, read back, compare with <code>usingRecursiveComparison()</code></li>
-            <li><code>findByEmail</code> and <code>findBySSN</code> — JSONB path queries exercising the GIN index</li>
+            <li><code>findByEmail</code> — JSONB path query exercising the GIN index</li>
             <li><code>findNextPage(cursor, limit)</code> — three keyset pagination cases: first page, next-page-after-cursor, empty-past-end</li>
             <li>Delete, delete-all, delete-without-flush, delete-non-existent edge cases</li>
           </ul>
@@ -1235,7 +1235,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
       <div class="card-grid cols-3" style="margin-bottom:16px;">
         <div class="card">
           <h3>PostgreSQL 15</h3>
-          <p>Customer data stored in a JSONB column. Schema managed by Flyway migrations. <code>V1_1_0</code> adds <strong>GIN indexes</strong> on the JSONB column for fast email and SSN lookups without full-table scans.</p>
+          <p>Customer data stored in a JSONB column. Schema managed by Flyway migrations. <code>V1_1_0</code> adds a <strong>GIN index</strong> on the JSONB column for fast email lookup without full-table scans.</p>
         </div>
         <div class="card">
           <h3>Kafka (KRaft)</h3>

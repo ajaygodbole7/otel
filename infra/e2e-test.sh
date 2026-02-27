@@ -96,7 +96,6 @@ echo -e "  Target: ${CYAN}$BASE_URL${NC}"
 echo ""
 
 E2E_EMAIL="e2e.test.$(date +%s)@demo.test"
-E2E_SSN="123-45-$(( RANDOM % 9000 + 1000 ))"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Step 1 — CREATE
@@ -110,9 +109,8 @@ CREATE_BODY=$(printf '{
   "middleName": "Integration",
   "emails": [{"primary": true, "email": "%s", "type": "PERSONAL"}],
   "phones": [{"type": "MOBILE", "countryCode": "+1", "number": "5550001234"}],
-  "addresses": [{"type": "HOME", "line1": "1 Test Ave", "city": "Chicago", "state": "IL", "postalCode": "60601", "country": "USA"}],
-  "documents": [{"country": "USA", "type": "SSN", "identifier": "%s"}]
-}' "$E2E_EMAIL" "$E2E_SSN")
+  "addresses": [{"type": "HOME", "line1": "1 Test Ave", "city": "Chicago", "state": "IL", "postalCode": "60601", "country": "USA"}]
+}' "$E2E_EMAIL")
 CODE=$(http POST "$BASE_URL" "$CREATE_BODY")
 assert_eq "HTTP status" 201 "$CODE"
 CUSTOMER_ID=$(get_field id)

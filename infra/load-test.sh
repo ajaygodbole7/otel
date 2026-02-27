@@ -8,7 +8,6 @@
 #   GET    /api/v1/customers          (paginated list)
 #   PATCH  /api/v1/customers/:id      (partial update)
 #   GET    /api/v1/customers/search?email=
-#   GET    /api/v1/customers/search?ssn=
 #   PUT    /api/v1/customers/:id      (full replace)
 #   DELETE /api/v1/customers/:id      (delete)
 #   GET    /api/v1/customers/9999999  (intentional 404 — drives error-rate panel)
