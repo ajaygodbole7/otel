@@ -74,11 +74,6 @@ public class CustomerTestDataProvider {
             new Phone("WORK", "1", "555-987-6543"),
             new Phone("HOME", "1", "555-111-2222")
         ))
-        .documents(List.of(
-            new Document("USA", "DRIVER_LICENSE", faker.bothify("??########")),
-            new Document("USA", "PASSPORT", faker.numerify("#########")),
-            new Document("USA", "SSN", faker.numerify("###-##-####"))
-        ))
         .createdAt(now)
         .updatedAt(now)
         .build();

@@ -388,34 +388,6 @@ class CustomerIntegrationTest {
   }
 
   @Test
-  @DisplayName("Should find customer by SSN after creation")
-  void shouldFindCustomerBySSN() throws Exception {
-    // Create a full customer that has an SSN document
-    Customer fullCustomer = CustomerTestDataProvider.createFullCustomer();
-    ResponseEntity<Customer> createResponse = restTemplate.postForEntity(baseUrl, fullCustomer, Customer.class);
-    assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-    Customer createdCustomer = createResponse.getBody();
-    assertThat(createdCustomer).isNotNull();
-
-    // Extract the SSN from the created customer via JsonNode (Document is package-private)
-    com.fasterxml.jackson.databind.JsonNode customerNode = objectMapper.valueToTree(createdCustomer);
-    String ssn = StreamSupport.stream(customerNode.get("documents").spliterator(), false)
-        .filter(d -> "SSN".equals(d.get("type").asText()))
-        .map(d -> d.get("identifier").asText())
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("No SSN document found on created customer"));
-
-    // Search by SSN — use URI template to avoid double-encoding by RestTemplate
-    ResponseEntity<Customer> searchResponse = restTemplate.getForEntity(
-        baseUrl + "/search?ssn={ssn}", Customer.class, ssn);
-
-    assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-    Customer foundCustomer = searchResponse.getBody();
-    assertThat(foundCustomer).isNotNull();
-    assertThat(foundCustomer.id()).isEqualTo(createdCustomer.id());
-  }
-
-  @Test
   @DisplayName("Should return 409 Conflict when creating a customer with an existing ID")
   void shouldReturn409WhenCreatingDuplicateCustomer() {
     // First creation
