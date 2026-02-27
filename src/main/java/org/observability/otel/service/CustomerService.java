@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.tsid.TSID;
 import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.observability.otel.rest.CustomerPageResponse;
 import org.springframework.data.domain.Limit;
@@ -41,6 +40,7 @@ public class CustomerService {
   private final CustomerRepository customerRepository;
   private final ObjectMapper objectMapper;
   private final CustomerEventPublisher eventPublisher;
+  private final jakarta.validation.Validator validator;
 
   /**
    * Retrieve a customer by their ID.
@@ -216,6 +216,12 @@ public class CustomerService {
       patchNode.fields().forEachRemaining(entry -> existingNode.set(entry.getKey(), entry.getValue()));
 
       Customer mergedCustomer = objectMapper.treeToValue(existingNode, Customer.class);
+      java.util.Set<jakarta.validation.ConstraintViolation<Customer>> violations = validator.validate(mergedCustomer);
+      if (!violations.isEmpty()) {
+        jakarta.validation.ConstraintViolation<Customer> first = violations.iterator().next();
+        throw new IllegalArgumentException(
+            "Patch violates field constraint — " + first.getPropertyPath() + ": " + first.getMessage());
+      }
       log.debug("Applied patch to customer ID: {}", id);
 
       // H4: createdAt comes from JSONB — no entity-column drift

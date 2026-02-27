@@ -49,6 +49,10 @@ class CustomerServiceUnitTest {
   @Mock
   private CustomerEventPublisher eventPublisher;
 
+  @org.mockito.Spy
+  jakarta.validation.Validator validator =
+      jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+
   private ObjectMapper objectMapper;
   private CustomerService customerService;
 
@@ -73,7 +77,7 @@ class CustomerServiceUnitTest {
             basicCustomer.id(), basicCustomer.createdAt());
     basicEntity = CustomerTestDataProvider.createBasicCustomerEntity();
     fullEntity = CustomerTestDataProvider.createFullCustomerEntity();
-    customerService = new CustomerService(customerRepository, objectMapper, eventPublisher);
+    customerService = new CustomerService(customerRepository, objectMapper, eventPublisher, validator);
   }
 
   // -----------------------------------------------------------------------
@@ -536,6 +540,27 @@ class CustomerServiceUnitTest {
 
     verify(customerRepository).saveAndFlush(any(CustomerEntity.class));
     verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when patch nulls a required field")
+  void shouldRejectPatchThatNullsRequiredField() throws Exception {
+    Customer existing = CustomerTestDataProvider.createBasicCustomer();
+    String existingJson = objectMapper.writeValueAsString(existing);
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(existing.id())
+        .createdAt(existing.createdAt())
+        .updatedAt(existing.updatedAt())
+        .customerJson(existingJson)
+        .build();
+    when(customerRepository.findById(existing.id())).thenReturn(Optional.of(entity));
+
+    // PATCH nulls firstName — violates @NotBlank
+    String patch = "{\"firstName\": null}";
+
+    assertThatThrownBy(() -> customerService.patch(existing.id(), patch))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("firstName");
   }
 
 }
