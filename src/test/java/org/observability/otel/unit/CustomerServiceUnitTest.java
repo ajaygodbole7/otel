@@ -172,9 +172,10 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("Should find customer by id successfully - Happy Path")
   void shouldFindCustomerById() throws Exception {
-    CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(basicCustomer.id())
+        .customerJson(objectMapper.writeValueAsString(basicCustomer))
+        .build();
 
     when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
 
@@ -204,7 +205,6 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("Should update customer - Happy Path")
   void shouldUpdateCustomer() throws Exception {
-    when(customerRepository.existsById(any())).thenReturn(true);
     when(customerRepository.findById(any(Long.class))).thenReturn(Optional.ofNullable(basicEntity));
     when(customerRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -218,7 +218,6 @@ class CustomerServiceUnitTest {
     assertThat(result.updatedAt()).isNotNull();
     assertThat(result.createdAt()).isNotNull();
 
-    verify(customerRepository).existsById(updatedCustomer.id());
     verify(customerRepository).saveAndFlush(any());
     verify(eventPublisher).publishCustomerUpdated(result);
   }
@@ -236,7 +235,6 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("Should throw CustomerServiceException when DataAccessException occurs during update")
   void shouldThrowServiceExceptionWhenUpdateFails() {
-    when(customerRepository.existsById(any())).thenReturn(true);
     when(customerRepository.findById(updatedCustomer.id())).thenReturn(Optional.of(basicEntity));
     when(customerRepository.saveAndFlush(any())).thenThrow(new DataAccessException("DB Error") {});
 
@@ -256,7 +254,6 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("Should not publish event when customer update fails due to database error")
   void shouldNotPublishEventOnUpdateFailure() {
-    when(customerRepository.existsById(any(Long.class))).thenReturn(true);
     when(customerRepository.findById(any(Long.class))).thenReturn(Optional.of(basicEntity));
     when(customerRepository.saveAndFlush(any(CustomerEntity.class)))
         .thenThrow(new DataAccessException("Database error") {});
@@ -406,9 +403,10 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("findByEmail - repository returns value - returns mapped Customer")
   void findByEmail_repositoryReturnsValue_returnsMappedCustomer() throws Exception {
-    CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(basicCustomer.id())
+        .customerJson(objectMapper.writeValueAsString(basicCustomer))
+        .build();
 
     when(customerRepository.findByEmail("user@example.com")).thenReturn(Optional.of(entity));
 
@@ -437,12 +435,12 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("patch() - applies firstName change only, other fields preserved")
   void shouldPatchFirstNameOnly() throws Exception {
-    CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(basicCustomer.id())
+        .customerJson(objectMapper.writeValueAsString(basicCustomer))
+        .build();
 
     when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
-    when(customerRepository.existsById(basicCustomer.id())).thenReturn(true);
     when(customerRepository.saveAndFlush(any(CustomerEntity.class))).thenAnswer(i -> i.getArgument(0));
 
     Customer result = customerService.patch(basicCustomer.id(), "{\"firstName\":\"PatchedName\"}");
@@ -457,12 +455,12 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("patch() - applies nested emails change")
   void shouldPatchEmails() throws Exception {
-    CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(basicCustomer.id())
+        .customerJson(objectMapper.writeValueAsString(basicCustomer))
+        .build();
 
     when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
-    when(customerRepository.existsById(basicCustomer.id())).thenReturn(true);
     when(customerRepository.saveAndFlush(any(CustomerEntity.class))).thenAnswer(i -> i.getArgument(0));
 
     String patchJson = "{\"emails\":[{\"primary\":true,\"email\":\"newemail@example.com\",\"type\":\"PERSONAL\"}]}";
@@ -490,9 +488,10 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("patch() - malformed patch JSON throws IllegalArgumentException")
   void shouldThrowIllegalArgumentExceptionForMalformedPatchJson() throws Exception {
-    CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(basicCustomer.id())
+        .customerJson(objectMapper.writeValueAsString(basicCustomer))
+        .build();
 
     when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
 
@@ -504,19 +503,18 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("patch() - saveAndFlush failure throws CustomerServiceException and no event published")
   void shouldThrowServiceExceptionWhenPatchSaveFails() throws Exception {
-    // patch() calls findById() once, then update() which calls findById() a second time
-    CustomerEntity entity = new CustomerEntity();
-    entity.setId(basicCustomer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(basicCustomer));
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(basicCustomer.id())
+        .customerJson(objectMapper.writeValueAsString(basicCustomer))
+        .build();
 
     when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(entity));
-    when(customerRepository.existsById(basicCustomer.id())).thenReturn(true);
     when(customerRepository.saveAndFlush(any(CustomerEntity.class)))
         .thenThrow(new DataAccessException("DB write failure during patch") {});
 
     assertThatThrownBy(() -> customerService.patch(basicCustomer.id(), "{\"firstName\":\"X\"}"))
         .isInstanceOf(CustomerServiceException.class)
-        .hasMessageContaining("Error updating customer");
+        .hasMessageContaining("Error patching customer");
 
     verify(customerRepository).saveAndFlush(any(CustomerEntity.class));
     verifyNoInteractions(eventPublisher);

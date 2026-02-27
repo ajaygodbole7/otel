@@ -100,9 +100,13 @@ public class CustomerService {
           .build();
       log.debug("Prepared customer for saving: {}", customerToSave);
 
-      CustomerEntity entity = new CustomerEntity();
-      entity.setId(customerId);
-      entity.setCustomerJson(objectMapper.writeValueAsString(customerToSave));
+      // H4: Use builder with explicit timestamps so @PrePersist does not overwrite them
+      CustomerEntity entity = CustomerEntity.builder()
+          .id(customerId)
+          .createdAt(now)
+          .updatedAt(now)
+          .customerJson(objectMapper.writeValueAsString(customerToSave))
+          .build();
 
       log.info("Saving customer to database");
       var savedEntity = customerRepository.saveAndFlush(entity);
@@ -142,6 +146,8 @@ public class CustomerService {
           .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
       log.debug("Found existing customer entity: {}", existingEntity);
 
+      // H4: Read createdAt from JSONB to avoid entity-column vs JSONB timestamp drift
+      Customer existing = convertToCustomer(existingEntity);
       Customer customerToUpdate = Customer.builder()
           .id(existingEntity.getId())
           .type(inboundCustomer.type())
@@ -152,7 +158,7 @@ public class CustomerService {
           .emails(inboundCustomer.emails())
           .phones(inboundCustomer.phones())
           .addresses(inboundCustomer.addresses())
-          .createdAt(existingEntity.getCreatedAt())
+          .createdAt(existing.createdAt())
           .updatedAt(Instant.now())
           .build();
       log.debug("Prepared customer update: {}", customerToUpdate);
@@ -188,7 +194,16 @@ public class CustomerService {
   @Transactional
   public Customer patch(Long id, String patchJson) {
     log.info("Starting customer patch process for ID: {}", id);
-    Customer existing = findById(id);
+
+    // H2: Load entity once directly — avoids the 3 DB calls caused by patch→findById + update→existsById + update→findById
+    CustomerEntity existingEntity;
+    try {
+      existingEntity = customerRepository.findById(id)
+          .orElseThrow(() -> new CustomerNotFoundException("Customer with ID " + id + " not found."));
+    } catch (Exception e) {
+      log.error("Failed to find customer with ID: {}", id, e);
+      return translateAndThrow(e, "Error retrieving customer with ID: " + id);
+    }
 
     try {
       JsonNode patchNode = objectMapper.readTree(patchJson);
@@ -196,19 +211,46 @@ public class CustomerService {
         throw new IllegalArgumentException("Patch document must be a JSON object");
       }
 
-      String existingJson = objectMapper.writeValueAsString(existing);
-      JsonNode existingNode = objectMapper.readTree(existingJson);
+      // Merge patch onto the existing JSONB directly (no double-serialisation of Customer)
+      ObjectNode existingNode = (ObjectNode) objectMapper.readTree(existingEntity.getCustomerJson());
+      patchNode.fields().forEachRemaining(entry -> existingNode.set(entry.getKey(), entry.getValue()));
 
-      ObjectNode merged = (ObjectNode) existingNode;
-      patchNode.fields().forEachRemaining(entry -> merged.set(entry.getKey(), entry.getValue()));
-
-      Customer mergedCustomer = objectMapper.treeToValue(merged, Customer.class);
+      Customer mergedCustomer = objectMapper.treeToValue(existingNode, Customer.class);
       log.debug("Applied patch to customer ID: {}", id);
 
-      return update(id, mergedCustomer);
+      // H4: createdAt comes from JSONB — no entity-column drift
+      Customer customerToSave = Customer.builder()
+          .id(mergedCustomer.id())
+          .type(mergedCustomer.type())
+          .firstName(mergedCustomer.firstName())
+          .lastName(mergedCustomer.lastName())
+          .middleName(mergedCustomer.middleName())
+          .suffix(mergedCustomer.suffix())
+          .emails(mergedCustomer.emails())
+          .phones(mergedCustomer.phones())
+          .addresses(mergedCustomer.addresses())
+          .createdAt(mergedCustomer.createdAt())
+          .updatedAt(Instant.now())
+          .build();
+
+      existingEntity.setCustomerJson(objectMapper.writeValueAsString(customerToSave));
+      var savedEntity = customerRepository.saveAndFlush(existingEntity);
+      var updatedCustomer = convertToCustomer(savedEntity);
+      log.info("Successfully patched customer with ID: {}", id);
+
+      log.info("Publishing customer updated event");
+      eventPublisher.publishCustomerUpdated(updatedCustomer);
+      log.info("Successfully published customer updated event");
+
+      return updatedCustomer;
     } catch (JsonProcessingException e) {
       log.error("Failed to parse patch JSON for customer ID: {}", id, e);
       throw new IllegalArgumentException("Failed to apply patch: " + e.getMessage(), e);
+    } catch (IllegalArgumentException e) {
+      throw e;
+    } catch (Exception e) {
+      log.error("Failed to patch customer with ID: {}", id, e);
+      return translateAndThrow(e, "Error patching customer with ID: " + id);
     }
   }
 
@@ -311,15 +353,12 @@ public class CustomerService {
    * @throws IllegalArgumentException if the ID doesn't match or customer data is invalid
    * @throws CustomerNotFoundException if the customer does not exist
    */
+  // H3: existsById removed — update()'s findById().orElseThrow() handles the not-found case
   private void validateExistingCustomer(Long id, Customer customer) {
     log.debug("Validating existing customer - ID: {}, Customer: {}", id, customer);
     if (customer == null || customer.id() == null || !id.equals(customer.id())) {
       log.error("Customer validation failed: invalid customer data or ID mismatch");
       throw new IllegalArgumentException("Invalid customer data or ID mismatch.");
-    }
-    if (!customerRepository.existsById(id)) {
-      log.error("Customer validation failed: customer with ID {} not found", id);
-      throw new CustomerNotFoundException("Customer with ID " + id + " not found.");
     }
     log.debug("Customer validation successful");
   }

@@ -297,10 +297,10 @@ class CustomerRepositoryTest {
 
   //Utility methods
   private CustomerEntity convertToEntity(Customer customer) throws JsonProcessingException {
-    var entity = new CustomerEntity();
-    entity.setId(customer.id());
-    entity.setCustomerJson(objectMapper.writeValueAsString(customer));
-    return entity;
+    return CustomerEntity.builder()
+        .id(customer.id())
+        .customerJson(objectMapper.writeValueAsString(customer))
+        .build();
   }
 
   private Customer convertToCustomer(CustomerEntity entity) {

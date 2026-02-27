@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -36,7 +35,6 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -49,8 +47,6 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 @Slf4j
 @RequiredArgsConstructor
-@RequestMapping(
-    produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_PROBLEM_JSON_VALUE})
 public class ExceptionTranslator {
 
   private static final String ERROR_BASE_URL = "https://api.example.com/errors/";
@@ -113,7 +109,7 @@ public class ExceptionTranslator {
                             Optional.ofNullable(error.getDefaultMessage()).orElse("No message"),
                         "errorCode", Optional.ofNullable(error.getCode()).orElse("UNKNOWN_CODE"),
                         "bindingFailure", String.valueOf(error.isBindingFailure())))
-            .collect(Collectors.toList()));
+            .toList());
     return ResponseEntity.badRequest().body(problemDetail);
   }
 
@@ -316,16 +312,14 @@ public class ExceptionTranslator {
     }
   }
 
-  /** Adds both common and optional metadata to the ProblemDetail. */
+  /** Adds request metadata to the ProblemDetail. Client IP is omitted (S3: PII). */
   private void addRequestMetadata(ProblemDetail detail, HttpServletRequest request) {
     Map<String, String> metadata =
         Map.of(
-            "clientIp", request.getRemoteAddr(),
             "httpMethod", request.getMethod(),
             "requestPath", request.getRequestURI(),
             "userAgent", Optional.ofNullable(request.getHeader("User-Agent")).orElse(""),
             "requestId", Optional.ofNullable(request.getHeader("X-Request-Id")).orElse(""),
-            "forwardedFor", Optional.ofNullable(request.getHeader("X-Forwarded-For")).orElse(""),
             "protocol", request.getProtocol(),
             "scheme", request.getScheme(),
             "isSecure", String.valueOf(request.isSecure()));
