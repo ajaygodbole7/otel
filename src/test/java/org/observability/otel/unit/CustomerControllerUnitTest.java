@@ -50,6 +50,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 @WebMvcTest(CustomerController.class)
 @Import(UnitTestConfig.class)
@@ -442,16 +444,6 @@ class CustomerControllerUnitTest {
   }
 
   @Test
-  @DisplayName("Should reject request with non-numeric ID")
-  void shouldRejectNonNumericId() throws Exception {
-    MvcResult result = performRequest(
-        get(customersUrl + "/abc")
-            .contentType(MediaType.APPLICATION_JSON)
-            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON));
-    assertResponse(result, HttpStatus.BAD_REQUEST);
-  }
-
-  @Test
   @DisplayName("Should return 400 when limit is below minimum (0)")
   void shouldRejectLimitBelowMin() throws Exception {
     MvcResult result = performRequest(buildGetCustomersRequest(0));
@@ -483,9 +475,14 @@ class CustomerControllerUnitTest {
   }
 
   @Test
-  @DisplayName("Should reject missing required parameters")
-  void shouldRejectMissingRequiredParameters() throws Exception {
-    MvcResult result = performRequest(buildGetRequest(null)); // Missing ID
+  @DisplayName("Should reject non-numeric customer ID path variable")
+  void shouldRejectNonNumericPathVariable() throws Exception {
+    // Sending GET /api/v1/customers/abc — path variable cannot be converted to Long
+    MockHttpServletRequestBuilder request =
+        MockMvcRequestBuilders.get(customersUrl + "/abc")
+            .accept(MediaType.APPLICATION_JSON);
+
+    MvcResult result = performRequest(request);
 
     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
     assertThat(result.getResponse().getContentAsString()).contains("Invalid Path Variable");
