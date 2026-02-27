@@ -25,6 +25,8 @@ spring:
     name: otel-demo
   main:
     banner-mode: off
+  jpa:
+    show-sql: true
   datasource:
     url: jdbc:postgresql://localhost:5432/demodb
     username: demouser

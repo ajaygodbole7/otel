@@ -53,12 +53,10 @@ class ExceptionTranslatorUnitTest {
     exceptionTranslator = new ExceptionTranslator(env);
 
     // Complete request mock setup to avoid NPE
-    when(request.getRemoteAddr()).thenReturn("127.0.0.1");
     when(request.getMethod()).thenReturn("POST");
     when(request.getRequestURI()).thenReturn("/api/v1/customers");
     when(request.getHeader("User-Agent")).thenReturn("TestAgent");
     when(request.getHeader("X-Request-Id")).thenReturn("test-123");
-    when(request.getHeader("X-Forwarded-For")).thenReturn("");
     when(request.getProtocol()).thenReturn("HTTP/1.1");
     when(request.getScheme()).thenReturn("https");
     when(request.isSecure()).thenReturn(true);

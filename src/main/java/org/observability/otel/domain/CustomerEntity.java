@@ -43,13 +43,12 @@ public class CustomerEntity {
     if (id == null) {
       id = TSID.Factory.getTsid().toLong();
     }
-    createdAt = Instant.now();
-    updatedAt = createdAt;
-  }
-
-  @PreUpdate
-  void preUpdate() {
-    updatedAt = Instant.now();
+    if (createdAt == null) {
+      createdAt = Instant.now();
+    }
+    if (updatedAt == null) {
+      updatedAt = createdAt;
+    }
   }
 
   @Override
@@ -81,7 +80,4 @@ public class CustomerEntity {
     this.customerJson = customerJson;
   }
 
-  public void setId(Long id) {
-    this.id = id;
-  }
 }
