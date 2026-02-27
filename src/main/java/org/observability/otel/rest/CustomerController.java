@@ -93,18 +93,12 @@ public class CustomerController implements CustomerAPI {
   }
 
   /**
-   * Searches for a customer by email or SSN.
-   * Exactly one of the two parameters must be provided.
+   * Searches for a customer by email.
    */
   @Override
-  public ResponseEntity<Customer> searchCustomer(String email, String ssn) {
-    log.debug("REST request to search Customer by email={} ssn=<redacted>", email != null ? email : "(none)");
-    if ((email == null) == (ssn == null)) {  // both null or both non-null
-      throw new IllegalArgumentException("Exactly one of 'email' or 'ssn' must be provided");
-    }
-    Customer customer = email != null
-        ? customerService.findByEmail(email)
-        : customerService.findBySSN(ssn);
+  public ResponseEntity<Customer> searchCustomer(String email) {
+    log.debug("REST request to search Customer by email={}", email);
+    Customer customer = customerService.findByEmail(email);
     return ResponseEntity.ok(customer);
   }
 }
