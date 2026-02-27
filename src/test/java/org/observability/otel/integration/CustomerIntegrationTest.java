@@ -137,11 +137,16 @@ class CustomerIntegrationTest {
         });
 
     // Verify Kafka event
-    ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> createEvents = filterEventsByType(records, "Customer::created");
-
-    assertThat(createEvents).hasSize(1);
-
+    List<ConsumerRecord<String, CloudEvent>> createEvents = new ArrayList<>();
+    await()
+        .atMost(30, TimeUnit.SECONDS)
+        .pollInterval(500, TimeUnit.MILLISECONDS)
+        .untilAsserted(() -> {
+          ConsumerRecords<String, CloudEvent> batch = kafkaConsumer.poll(Duration.ofMillis(200));
+          createEvents.addAll(filterEventsByTypeAndSubject(batch, "Customer::created",
+              createdCustomer.id().toString()));
+          assertThat(createEvents).hasSize(1);
+        });
     CloudEvent event = createEvents.get(0).value();
     log.info("Create event received: {}", event);
 
@@ -169,9 +174,6 @@ class CustomerIntegrationTest {
     assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     Customer createdCustomer = createResponse.getBody();
     assertThat(createdCustomer).isNotNull();
-
-    // Clear initial create event
-    kafkaConsumer.poll(Duration.ofSeconds(10));
 
     // Update the customer
     Customer customerToUpdate = Customer.builder()
@@ -217,11 +219,16 @@ class CustomerIntegrationTest {
         });
 
     // Verify Kafka event
-    ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> updateEvents = filterEventsByType(records, "Customer::updated");
-
-    assertThat(updateEvents).hasSize(1);
-
+    List<ConsumerRecord<String, CloudEvent>> updateEvents = new ArrayList<>();
+    await()
+        .atMost(30, TimeUnit.SECONDS)
+        .pollInterval(500, TimeUnit.MILLISECONDS)
+        .untilAsserted(() -> {
+          ConsumerRecords<String, CloudEvent> batch = kafkaConsumer.poll(Duration.ofMillis(200));
+          updateEvents.addAll(filterEventsByTypeAndSubject(batch, "Customer::updated",
+              updatedCustomer.id().toString()));
+          assertThat(updateEvents).hasSize(1);
+        });
     CloudEvent event = updateEvents.get(0).value();
     log.info("Update event received: {}", event);
 
@@ -247,9 +254,6 @@ class CustomerIntegrationTest {
     Customer createdCustomer = createResponse.getBody();
     assertThat(createdCustomer).isNotNull();
 
-    // Clear initial create event
-    kafkaConsumer.poll(Duration.ofSeconds(10));
-
     // Delete the customer and verify response
     log.info("Deleting customer: {}", createdCustomer);
     HttpHeaders headers = new HttpHeaders();
@@ -269,11 +273,16 @@ class CustomerIntegrationTest {
             assertThat(customerRepository.findById(createdCustomer.id())).isEmpty());
 
     // Verify Kafka event
-    ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> deleteEvents = filterEventsByType(records, "Customer::deleted");
-
-    assertThat(deleteEvents).hasSize(1);
-
+    List<ConsumerRecord<String, CloudEvent>> deleteEvents = new ArrayList<>();
+    await()
+        .atMost(30, TimeUnit.SECONDS)
+        .pollInterval(500, TimeUnit.MILLISECONDS)
+        .untilAsserted(() -> {
+          ConsumerRecords<String, CloudEvent> batch = kafkaConsumer.poll(Duration.ofMillis(200));
+          deleteEvents.addAll(filterEventsByTypeAndSubject(batch, "Customer::deleted",
+              createdCustomer.id().toString()));
+          assertThat(deleteEvents).hasSize(1);
+        });
     CloudEvent event = deleteEvents.get(0).value();
     log.info("Delete event received: {}", event);
 
@@ -453,9 +462,6 @@ class CustomerIntegrationTest {
     assertThat(createdCustomer).isNotNull();
     String originalLastName = createdCustomer.lastName();
 
-    // Drain the create event so it doesn't bleed into the update assertion
-    kafkaConsumer.poll(Duration.ofSeconds(10));
-
     // PATCH only firstName
     HttpHeaders patchHeaders = new HttpHeaders();
     patchHeaders.setContentType(MediaType.parseMediaType("application/merge-patch+json"));
@@ -474,10 +480,16 @@ class CustomerIntegrationTest {
     assertThat(patchedCustomer.lastName()).isEqualTo(originalLastName);
 
     // Verify Customer::updated Kafka event
-    ConsumerRecords<String, CloudEvent> records = kafkaConsumer.poll(Duration.ofSeconds(10));
-    List<ConsumerRecord<String, CloudEvent>> updateEvents = filterEventsByType(records, "Customer::updated");
-
-    assertThat(updateEvents).hasSize(1);
+    List<ConsumerRecord<String, CloudEvent>> updateEvents = new ArrayList<>();
+    await()
+        .atMost(30, TimeUnit.SECONDS)
+        .pollInterval(500, TimeUnit.MILLISECONDS)
+        .untilAsserted(() -> {
+          ConsumerRecords<String, CloudEvent> batch = kafkaConsumer.poll(Duration.ofMillis(200));
+          updateEvents.addAll(filterEventsByTypeAndSubject(batch, "Customer::updated",
+              patchedCustomer.id().toString()));
+          assertThat(updateEvents).hasSize(1);
+        });
     CloudEvent event = updateEvents.get(0).value();
     assertThat(event.getType()).isEqualTo("Customer::updated");
     assertThat(event.getSource().toString()).isEqualTo("/customer/events");
@@ -492,10 +504,11 @@ class CustomerIntegrationTest {
   // Helpers
   // -----------------------------------------------------------------------
 
-  private List<ConsumerRecord<String, CloudEvent>> filterEventsByType(
-      ConsumerRecords<String, CloudEvent> records, String eventType) {
+  private List<ConsumerRecord<String, CloudEvent>> filterEventsByTypeAndSubject(
+      ConsumerRecords<String, CloudEvent> records, String eventType, String subject) {
     return StreamSupport.stream(records.spliterator(), false)
-        .filter(record -> record.value().getType().equals(eventType))
+        .filter(record -> record.value().getType().equals(eventType)
+                       && subject.equals(record.value().getSubject()))
         .toList();
   }
 
