@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.tsid.TSID;
 import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.observability.otel.rest.CustomerPageResponse;
 import org.springframework.data.domain.Limit;
@@ -41,6 +40,7 @@ public class CustomerService {
   private final CustomerRepository customerRepository;
   private final ObjectMapper objectMapper;
   private final CustomerEventPublisher eventPublisher;
+  private final jakarta.validation.Validator validator;
 
   /**
    * Retrieve a customer by their ID.
@@ -216,6 +216,12 @@ public class CustomerService {
       patchNode.fields().forEachRemaining(entry -> existingNode.set(entry.getKey(), entry.getValue()));
 
       Customer mergedCustomer = objectMapper.treeToValue(existingNode, Customer.class);
+      java.util.Set<jakarta.validation.ConstraintViolation<Customer>> violations = validator.validate(mergedCustomer);
+      if (!violations.isEmpty()) {
+        jakarta.validation.ConstraintViolation<Customer> first = violations.iterator().next();
+        throw new IllegalArgumentException(
+            "Patch violates field constraint — " + first.getPropertyPath() + ": " + first.getMessage());
+      }
       log.debug("Applied patch to customer ID: {}", id);
 
       // H4: createdAt comes from JSONB — no entity-column drift
@@ -326,6 +332,32 @@ public class CustomerService {
     }
   }
 
+  private void checkEmailUniqueness(Customer customer, Long excludeId) {
+    if (customer.emails() == null || customer.emails().isEmpty()) {
+      return;
+    }
+    com.fasterxml.jackson.databind.JsonNode emailsNode =
+        objectMapper.valueToTree(customer).get("emails");
+    if (emailsNode == null || !emailsNode.isArray()) {
+      return;
+    }
+    for (com.fasterxml.jackson.databind.JsonNode emailNode : emailsNode) {
+      com.fasterxml.jackson.databind.JsonNode emailField = emailNode.get("email");
+      if (emailField == null || emailField.isNull()) {
+        continue;
+      }
+      String emailAddress = emailField.asText();
+      customerRepository.findByEmail(emailAddress)
+          .filter(entity -> excludeId == null || !entity.getId().equals(excludeId))
+          .ifPresent(entity -> {
+            log.warn("Email uniqueness violation: {} is already owned by customer {}",
+                emailAddress, entity.getId());
+            throw new CustomerConflictException(
+                "A customer with email " + emailAddress + " already exists.");
+          });
+    }
+  }
+
   /**
    * Validate the input for creating a new customer.
    *
@@ -343,6 +375,7 @@ public class CustomerService {
       log.error("Customer validation failed: customer with ID {} already exists", customer.id());
       throw new CustomerConflictException("Customer with ID " + customer.id() + " already exists.");
     }
+    checkEmailUniqueness(customer, null);
     log.debug("Customer validation successful");
   }
 
@@ -361,6 +394,7 @@ public class CustomerService {
       log.error("Customer validation failed: invalid customer data or ID mismatch");
       throw new IllegalArgumentException("Invalid customer data or ID mismatch.");
     }
+    checkEmailUniqueness(customer, id);
     log.debug("Customer validation successful");
   }
 

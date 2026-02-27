@@ -111,6 +111,9 @@ class CustomerRepositoryTest {
     saved.setCustomerJson(objectMapper.writeValueAsString(updatedCustomer));
     var updated = customerRepository.saveAndFlush(saved);
 
+    // NEW: verify the SQL column updated_at was bumped by @PreUpdate
+    assertThat(updated.getUpdatedAt()).isAfter(initialUpdatedAt);
+
     // Then
     customerRepository.findById(saved.getId())
         .map(this::convertToCustomer)

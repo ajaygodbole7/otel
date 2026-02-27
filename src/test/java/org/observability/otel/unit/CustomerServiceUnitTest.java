@@ -49,6 +49,10 @@ class CustomerServiceUnitTest {
   @Mock
   private CustomerEventPublisher eventPublisher;
 
+  @org.mockito.Spy
+  jakarta.validation.Validator validator =
+      jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+
   private ObjectMapper objectMapper;
   private CustomerService customerService;
 
@@ -73,7 +77,7 @@ class CustomerServiceUnitTest {
             basicCustomer.id(), basicCustomer.createdAt());
     basicEntity = CustomerTestDataProvider.createBasicCustomerEntity();
     fullEntity = CustomerTestDataProvider.createFullCustomerEntity();
-    customerService = new CustomerService(customerRepository, objectMapper, eventPublisher);
+    customerService = new CustomerService(customerRepository, objectMapper, eventPublisher, validator);
   }
 
   // -----------------------------------------------------------------------
@@ -138,6 +142,34 @@ class CustomerServiceUnitTest {
     verify(customerRepository).existsById(basicCustomer.id());
     verify(customerRepository, never()).saveAndFlush(any());
     verify(eventPublisher, never()).publishCustomerCreated(any());
+  }
+
+  @Test
+  @DisplayName("Should throw CustomerConflictException when creating customer with an already-used email")
+  void shouldThrowConflictOnDuplicateEmailDuringCreate() throws Exception {
+    Customer customerWithEmail = CustomerTestDataProvider.createFullCustomer();
+
+    // Extract the primary email using JsonNode (Email is package-private, can't call .email() directly)
+    com.fasterxml.jackson.databind.JsonNode emailsNode =
+        objectMapper.valueToTree(customerWithEmail).get("emails");
+    String primaryEmail = java.util.stream.StreamSupport
+        .stream(emailsNode.spliterator(), false)
+        .filter(e -> e.get("primary") != null && e.get("primary").asBoolean())
+        .map(e -> e.get("email").asText())
+        .findFirst()
+        .orElseThrow();
+
+    CustomerEntity conflicting = CustomerEntity.builder()
+        .id(99999L)
+        .customerJson("{}")
+        .build();
+
+    when(customerRepository.existsById(any())).thenReturn(false);
+    when(customerRepository.findByEmail(primaryEmail)).thenReturn(Optional.of(conflicting));
+
+    assertThatThrownBy(() -> customerService.create(customerWithEmail))
+        .isInstanceOf(CustomerConflictException.class)
+        .hasMessageContaining("already exists");
   }
 
   @Test
@@ -536,6 +568,27 @@ class CustomerServiceUnitTest {
 
     verify(customerRepository).saveAndFlush(any(CustomerEntity.class));
     verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when patch nulls a required field")
+  void shouldRejectPatchThatNullsRequiredField() throws Exception {
+    Customer existing = CustomerTestDataProvider.createBasicCustomer();
+    String existingJson = objectMapper.writeValueAsString(existing);
+    CustomerEntity entity = CustomerEntity.builder()
+        .id(existing.id())
+        .createdAt(existing.createdAt())
+        .updatedAt(existing.updatedAt())
+        .customerJson(existingJson)
+        .build();
+    when(customerRepository.findById(existing.id())).thenReturn(Optional.of(entity));
+
+    // PATCH nulls firstName — violates @NotBlank
+    String patch = "{\"firstName\": null}";
+
+    assertThatThrownBy(() -> customerService.patch(existing.id(), patch))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("firstName");
   }
 
 }

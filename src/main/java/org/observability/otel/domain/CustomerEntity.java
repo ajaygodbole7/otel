@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
@@ -30,6 +31,7 @@ public class CustomerEntity {
   @Column(name = "id", updatable = false, nullable = false)
   private Long id;
 
+  @Setter
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
   private String customerJson;
@@ -47,6 +49,11 @@ public class CustomerEntity {
     if (updatedAt == null) {
       updatedAt = createdAt;
     }
+  }
+
+  @PreUpdate
+  void preUpdate() {
+    updatedAt = Instant.now();
   }
 
   @Override
@@ -72,10 +79,6 @@ public class CustomerEntity {
         + ", updatedAt="
         + updatedAt
         + '}';
-  }
-
-  public void setCustomerJson(String customerJson) {
-    this.customerJson = customerJson;
   }
 
 }

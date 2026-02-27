@@ -17,10 +17,8 @@ import org.springframework.stereotype.Repository;
 public interface CustomerRepository extends JpaRepository<CustomerEntity, Long> {
 
   @Query(value = "SELECT * FROM customers " +
-      "WHERE EXISTS (" +
-      "  SELECT 1 FROM jsonb_array_elements(customer_json->'emails') AS email " +
-      "  WHERE email->>'email' = :email" +
-      ")", nativeQuery = true)
+      "WHERE customer_json @> jsonb_build_object('emails', jsonb_build_array(jsonb_build_object('email', :email)))",
+      nativeQuery = true)
   Optional<CustomerEntity> findByEmail(@Param("email") String email);
 
   @Query("SELECT c FROM CustomerEntity c WHERE (:afterId IS NULL OR c.id > :afterId) ORDER BY c.id ASC")
