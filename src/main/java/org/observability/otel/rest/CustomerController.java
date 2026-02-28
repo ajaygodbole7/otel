@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.observability.otel.domain.Customer;
 import org.observability.otel.service.CustomerService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
  */
 @RestController
+@Validated
 @Slf4j
 @RequiredArgsConstructor
 public class CustomerController implements CustomerAPI {

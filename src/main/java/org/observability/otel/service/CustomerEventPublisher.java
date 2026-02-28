@@ -8,6 +8,7 @@ import io.hypersistence.tsid.TSID;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.observability.otel.domain.Customer;
@@ -64,18 +65,12 @@ public class CustomerEventPublisher {
           .withData(JsonCloudEventData.wrap(customerJsonNode))
           .build();
 
-      kafkaTemplate.send(TOPIC, cloudEvent.getId(), cloudEvent)
-          .whenComplete((result, ex) -> {
-            if (ex != null) {
-              log.error("Failed to publish {} event for customer {}: {}",
-                        eventType, customer.id(), ex.getMessage(), ex);
-            } else {
-              log.info("Published {} event for customer {} to partition {} offset {}",
-                       eventType, customer.id(),
-                       result.getRecordMetadata().partition(),
-                       result.getRecordMetadata().offset());
-            }
-          });
+      var result = kafkaTemplate.send(TOPIC, cloudEvent.getId(), cloudEvent)
+          .get(5, TimeUnit.SECONDS);
+      log.info("Published {} event for customer {} to partition {} offset {}",
+               eventType, customer.id(),
+               result.getRecordMetadata().partition(),
+               result.getRecordMetadata().offset());
     } catch (Exception e) {
       log.error("Error publishing event for customer {}: {}",
                 customer.id(), e.getMessage(), e);

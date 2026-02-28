@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -52,9 +51,6 @@ public class ExceptionTranslator {
   private static final String ERROR_BASE_URL = "https://api.example.com/errors/";
   private static final String ERROR_CODE = "errorCode";
   private static final String TIMESTAMP = "timestamp";
-  private static final String TRACE_ID = "traceId";
-  private static final String SPAN_ID = "spanId";
-  private static final String REQUEST_ID = "requestId";
   private final Environment env;
 
   /** Handle Custom Exceptions defined in the Service layer */
@@ -292,8 +288,6 @@ public class ExceptionTranslator {
 
     addDebugInfo(problemDetail, ex);
     addRequestMetadata(problemDetail, request);
-    markSpanError(problemDetail, ex);
-
     return problemDetail;
   }
 
@@ -326,50 +320,4 @@ public class ExceptionTranslator {
     detail.setProperty("request", metadata);
   }
 
-  /** Marks the current span as an error in OpenTelemetry for better trace analysis. */
-  private void markSpanError(ProblemDetail detail, Exception ex) {
-    /*
-    Span span = Span.current();
-    if (span.getSpanContext().isValid()) {
-      span.setStatus(StatusCode.ERROR);
-      span.setAttribute("error.message", ex.getMessage());
-      // API caller errors 4XX are tagged as low
-      span.setAttribute("error.severity", detail.getStatus() >= 500 ? "HIGH" : "LOW");
-      // Retrieve the error code and convert it to String if present
-      Optional.ofNullable(detail.getProperties().get(ERROR_CODE))
-          .map(Object::toString) // Convert to String only if not null
-          .ifPresent(code -> span.setAttribute("error.code", code));
-
-      detail.setProperty(TRACE_ID, span.getSpanContext().getTraceId());
-      detail.setProperty(SPAN_ID, span.getSpanContext().getSpanId());
-    }
-    
-     */
-  }
-
-  /** Adds optional request metadata that might not be present in all environments (e.g., cloud). */
-  private void addOptionalMetadata(ProblemDetail detail, HttpServletRequest request) {
-    Map<String, Supplier<String>> metadataSuppliers =
-        Map.of(
-            "forwardedFor",
-            () -> request.getHeader("X-Forwarded-For"),
-            "queryParams",
-            request::getQueryString,
-            "protocol",
-            request::getProtocol,
-            "scheme",
-            request::getScheme,
-            "referrer",
-            () -> request.getHeader("Referer"),
-            "acceptLanguage",
-            () -> request.getHeader("Accept-Language"));
-
-    // Iterate through the suppliers and set properties if values are non-null
-    metadataSuppliers.forEach(
-        (key, supplier) ->
-            Optional.ofNullable(supplier.get()).ifPresent(value -> detail.setProperty(key, value)));
-
-    // Handle the boolean separately
-    detail.setProperty("isSecure", String.valueOf(request.isSecure()));
-  }
 }

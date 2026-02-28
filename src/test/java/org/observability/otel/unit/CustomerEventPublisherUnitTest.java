@@ -23,7 +23,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -142,14 +141,10 @@ class CustomerEventPublisherUnitTest {
     when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
         .thenReturn(failedFuture);
 
-    // When & Then
-    assertThatThrownBy(() -> {
-      eventPublisher.publishCustomerCreated(basicCustomer);
-      failedFuture.join(); // Force completion of the CompletableFuture
-    })
-        .isInstanceOf(CompletionException.class)
-        .hasCauseInstanceOf(RuntimeException.class)
-        .hasRootCauseMessage("Kafka send failed");
+    // When & Then — .get() throws ExecutionException, caught and wrapped in CustomerServiceException
+    assertThatThrownBy(() -> eventPublisher.publishCustomerCreated(basicCustomer))
+        .isInstanceOf(CustomerServiceException.class)
+        .hasMessageContaining("Failed to publish event");
 
     verify(kafkaTemplate).send(eq(TOPIC), anyString(), any(CloudEvent.class));
   }
@@ -235,13 +230,10 @@ class CustomerEventPublisherUnitTest {
     when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
         .thenReturn(timeoutFuture);
 
-    assertThatThrownBy(() -> {
-      eventPublisher.publishCustomerCreated(basicCustomer);
-      timeoutFuture.join(); // Force completion of the CompletableFuture
-    })
-        .isInstanceOf(CompletionException.class)
-        .hasCauseInstanceOf(TimeoutException.class)
-        .hasRootCauseMessage("Kafka timeout");
+    // .get() throws ExecutionException, caught and wrapped in CustomerServiceException
+    assertThatThrownBy(() -> eventPublisher.publishCustomerCreated(basicCustomer))
+        .isInstanceOf(CustomerServiceException.class)
+        .hasMessageContaining("Failed to publish event");
 
     verify(kafkaTemplate).send(eq(TOPIC), anyString(), any(CloudEvent.class));
   }

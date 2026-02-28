@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -392,40 +391,6 @@ class CustomerControllerUnitTest {
     MvcResult result = performRequest(buildPostRequestWithContentType(basicCustomer, MediaType.TEXT_PLAIN));
 
     assertResponse(result, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
-  }
-
-  @Test
-  @Disabled("OTel span error marking deferred to Spring Boot 4 upgrade — markSpanError() is commented out in production")
-  @DisplayName("Error response should include traceId and spanId")
-  void errorResponseShouldIncludeTraceDetails() throws Exception {
-    /*
-    // Mocking SpanContext
-    SpanContext mockSpanContext = mock(SpanContext.class);
-    when(mockSpanContext.isValid()).thenReturn(true);
-    when(mockSpanContext.getTraceId()).thenReturn("mock-trace-id-12345");
-    when(mockSpanContext.getSpanId()).thenReturn("mock-span-id-67890");
-
-    // Mocking Span and linking SpanContext
-    Span mockSpan = mock(Span.class);
-    when(mockSpan.getSpanContext()).thenReturn(mockSpanContext);
-
-    // Correct use of MockedStatic for Span.current()
-    try (MockedStatic<Span> spanMockedStatic = mockStatic(Span.class)) {
-      spanMockedStatic.when(Span::current).thenReturn(mockSpan);
-
-      // Triggering service exception
-      when(customerService.findById(anyLong()))
-          .thenThrow(new CustomerServiceException("Internal error"));
-
-      MvcResult result = performRequest(buildGetRequest(1L));
-      String jsonResponse = result.getResponse().getContentAsString();
-
-      // Assertions
-      assertThat(jsonResponse).contains("mock-trace-id-12345");
-      assertThat(jsonResponse).contains("mock-span-id-67890");
-    }
-    
-     */
   }
 
   @Test

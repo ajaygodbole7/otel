@@ -17,7 +17,8 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 die()     { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
 # ── Java 21 ───────────────────────────────────────────────────────────────────
-JAVA_BIN=$(/usr/libexec/java_home -v 21 2>/dev/null)/bin/java
+export JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null)
+JAVA_BIN="$JAVA_HOME/bin/java"
 [ -x "$JAVA_BIN" ] || die "Java 21 not found. Install via: brew install --cask temurin@21"
 info "Java: $("$JAVA_BIN" -version 2>&1 | head -1)"
 
@@ -38,7 +39,7 @@ if [ "$SKIP_BUILD" = "true" ] && [ -n "$JAR_FILE" ]; then
 else
   info "Building application (skipping tests)..."
   cd "$PROJECT_DIR"
-  JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn clean package -DskipTests -q
+  mvn clean package -DskipTests -q
   JAR_FILE=$(ls $JAR_GLOB | head -1)
   success "Built: $(basename "$JAR_FILE")"
 fi
