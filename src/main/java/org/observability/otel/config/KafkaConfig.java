@@ -16,7 +16,7 @@ import org.springframework.kafka.core.ProducerFactory;
 @Configuration
 public class KafkaConfig {
 
-  // Property injection for Inetgration tests
+  // Property injection for Integration tests and production
   @Value("${spring.kafka.bootstrap-servers}")
   private String bootstrapServers;
 
@@ -27,8 +27,9 @@ public class KafkaConfig {
     config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
     config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, CloudEventSerializer.class);
     config.put(ProducerConfig.ACKS_CONFIG, "all");
-    config.put(ProducerConfig.RETRIES_CONFIG, 3);
+    config.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);
     config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+    config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
     config.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
     config.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120000);
 

@@ -71,6 +71,9 @@ public class CustomerEventPublisher {
                eventType, customer.id(),
                result.getRecordMetadata().partition(),
                result.getRecordMetadata().offset());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new CustomerServiceException("Kafka send interrupted", e);
     } catch (Exception e) {
       log.error("Error publishing event for customer {}: {}",
                 customer.id(), e.getMessage(), e);

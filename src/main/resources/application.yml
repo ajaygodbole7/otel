@@ -12,7 +12,7 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -27,7 +27,7 @@ spring:
     schemas: public
     create-schemas: true
     baseline-version: 0
-    clean-disabled: false    # Prevent database cleaning in production
+    clean-disabled: true
 
   # Kafka Configuration
   kafka:
@@ -35,13 +35,6 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.cloudevents.kafka.CloudEventSerializer
-      properties:
-        # Enable idempotence for exactly-once semantics
-        enable.idempotence: true
-        acks: all
-        retries: 3
-        delivery.timeout.ms: 120000
-        compression.type: gzip
     consumer:
       group-id: otel-demo-group
       auto-offset-reset: earliest
@@ -74,6 +67,5 @@ logging:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} trace_id=%X{trace_id} span_id=%X{span_id} trace_flags=%X{trace_flags} - %msg%n"
   level:
     root: INFO
-    com.example: DEBUG
     org.springframework.web: INFO
     org.hibernate: INFO

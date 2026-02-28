@@ -261,6 +261,28 @@ class CustomerEventPublisherUnitTest {
   }
 
   @Test
+  @DisplayName("Should restore interrupt flag when InterruptedException is thrown")
+  void shouldRestoreInterruptFlagOnInterruptedException() {
+    // Given — a future that never completes, so .get() will throw InterruptedException
+    when(kafkaTemplate.send(anyString(), anyString(), any(CloudEvent.class)))
+        .thenReturn(new CompletableFuture<>());
+
+    // Interrupt the current thread before calling publishCustomerCreated
+    Thread.currentThread().interrupt();
+
+    // When & Then
+    assertThatThrownBy(() -> eventPublisher.publishCustomerCreated(basicCustomer))
+        .isInstanceOf(CustomerServiceException.class)
+        .hasMessageContaining("Kafka send interrupted");
+
+    // The interrupt flag must be restored
+    assertThat(Thread.currentThread().isInterrupted()).isTrue();
+
+    // Clean up the interrupt flag so it doesn't affect other tests
+    Thread.interrupted();
+  }
+
+  @Test
   @DisplayName("Should serialize full customer with all nested data correctly into CloudEvent")
   void shouldSerializeFullCustomerDataCorrectlyInEvent() throws JsonProcessingException {
     // Given
