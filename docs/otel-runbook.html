@@ -980,7 +980,7 @@ export TESTCONTAINERS_RYUK_DISABLED=true
 JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test</code></pre>
       </div>
     </div>
-    <p style="margin-top:.4rem">Expected result: <strong>263 tests, 0 failures, 1 skipped</strong> (the <code>@Disabled</code> OTel trace test, deferred to Spring Boot 4 upgrade).</p>
+    <p style="margin-top:.4rem">Expected result: <strong>all tests pass, 0 failures</strong> (one test is <code>@Disabled</code> — the OTel trace test, deferred to the Spring Boot 4 upgrade).</p>
   </div>
 
   <hr />
@@ -1147,7 +1147,6 @@ BASE_URL=http://staging.example.com/api/v1/customers ROUNDS=10 ./infra/load-test
       <tr><td><span class="badge patch">PATCH</span></td><td><code>/customers/{id}</code></td><td>Partial update (RFC 7396)</td><td><span class="badge s200">200</span></td><td><span class="badge s404">404</span></td></tr>
       <tr><td><span class="badge put">PUT</span></td><td><code>/customers/{id}</code></td><td>Full replace — all fields</td><td><span class="badge s200">200</span></td><td><span class="badge s400">400</span> <span class="badge s404">404</span></td></tr>
       <tr><td><span class="badge get">GET</span></td><td><code>/customers/search?email=</code></td><td>Find by email address</td><td><span class="badge s200">200</span></td><td><span class="badge s404">404</span></td></tr>
-      <tr><td><span class="badge get">GET</span></td><td><code>/customers/search?ssn=</code></td><td>Find by SSN document</td><td><span class="badge s200">200</span></td><td><span class="badge s404">404</span></td></tr>
       <tr><td><span class="badge delete">DELETE</span></td><td><code>/customers/{id}</code></td><td>Delete — publishes CloudEvent</td><td><span class="badge s204">204</span></td><td><span class="badge s404">404</span></td></tr>
     </tbody>
   </table>
@@ -1177,15 +1176,12 @@ Content-Type: application/json
       "postalCode": "60601", "country": "USA"
     }
   ],
-  "documents": [
-    {"country": "USA", "type": "SSN", "identifier": "123-45-6789"}  <span class="comment">// optional</span>
-  ]
 }</code></pre>
 
   <p><strong>Response 201</strong> — full Customer object with generated <code>id</code> (TSID), <code>createdAt</code>, and <code>updatedAt</code>.</p>
   <p>
     <strong>Validation:</strong> <code>emails</code>, <code>phones</code>, and <code>addresses</code>
-    must each have ≥ 1 entry (<code>@NotEmpty</code>). Duplicate email or SSN returns
+    must each have ≥ 1 entry (<code>@NotEmpty</code>). Duplicate email returns
     <span class="badge s409">409</span>.
   </p>
 
@@ -1262,34 +1258,31 @@ Content-Type: application/json
   <pre><code># By email
 GET /api/v1/customers/search?email=jane.smith@example.com
 
-# By SSN
-GET /api/v1/customers/search?ssn=123-45-6789
-
-# Both return: 200 with single Customer object, or 404 Problem Details</code></pre>
+# Returns: 200 with single Customer object, or 404 Problem Details</code></pre>
 
   <h2 id="api-delete" class="anchor"><span class="h-icon">🗑</span> Delete Customer</h2>
   <pre><code>DELETE /api/v1/customers/814948546554233853
 
 # 204 No Content — Customer::deleted CloudEvent published to Kafka</code></pre>
 
+  <!-- NOTE: OTel trace/span ID injection into error responses is planned for the Spring Boot 4 upgrade. -->
   <h2 id="api-errors" class="anchor"><span class="h-icon">⚠️</span> Error Responses (RFC 7807)</h2>
   <pre><code>{
   "type":     "https://api.example.com/errors/404",
   "title":    "Customer Not Found",
   "status":   404,
   "detail":   "Customer with id 9999999999 not found",
-  "instance": "/api/v1/customers/9999999999",
-  "traceId":  "4bf92f3577b34da6a3ce929d0e0e4736",   <span class="comment">// OTel trace ID</span>
-  "spanId":   "00f067aa0ba902b7"
+  "instance": "/api/v1/customers/9999999999"
 }</code></pre>
+  <p><em>Note: OTel trace/span ID injection into error responses is planned for the Spring Boot 4 upgrade.</em></p>
 
   <div class="table-wrap">
   <table>
     <thead><tr><th>Status</th><th>Condition</th></tr></thead>
     <tbody>
       <tr><td><span class="badge s400">400</span></td><td>Bean validation failure — missing required fields</td></tr>
-      <tr><td><span class="badge s404">404</span></td><td>Customer not found by ID, email, or SSN</td></tr>
-      <tr><td><span class="badge s409">409</span></td><td>Duplicate email or SSN on create</td></tr>
+      <tr><td><span class="badge s404">404</span></td><td>Customer not found by ID or email</td></tr>
+      <tr><td><span class="badge s409">409</span></td><td>Duplicate email on create</td></tr>
       <tr><td>415</td><td>Wrong Content-Type — PATCH requires <code>application/merge-patch+json</code></td></tr>
       <tr><td>500</td><td>Internal error (DB unavailable, serialization error)</td></tr>
     </tbody>
@@ -1310,7 +1303,7 @@ GET /api/v1/customers/search?ssn=123-45-6789
 
   <div class="steps">
     <div class="step"><div class="step-num"></div><div class="step-body">
-      <strong>POST</strong> — Create with email, phone, address, SSN document. Assert 201, non-empty <code>id</code>, and <code>createdAt</code>.
+      <strong>POST</strong> — Create with email, phone, address. Assert 201, non-empty <code>id</code>, and <code>createdAt</code>.
     </div></div>
     <div class="step"><div class="step-num"></div><div class="step-body">
       <strong>GET /{id}</strong> — Fetch and verify all fields: firstName, lastName, middleName, email, phone, city.

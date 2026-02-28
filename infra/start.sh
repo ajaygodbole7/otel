@@ -53,7 +53,7 @@ $COMPOSE_CMD -f "$COMPOSE_FILE" up -d
 
 echo ""
 info "Waiting for services to become healthy..."
-wait_for_http "PostgreSQL (via healthcheck)" "http://localhost:9090/-/ready"   60  # proxy: Prometheus as earliest indicator
+wait_for_http "Prometheus"                    "http://localhost:9090/-/ready"   60
 wait_for_http "Prometheus"                    "http://localhost:9090/-/ready"   60
 wait_for_http "Grafana"                       "http://localhost:3000/api/health" 60
 wait_for_http "OTel Collector (zPages)"       "http://localhost:55679/debug/tracez" 30
@@ -71,7 +71,7 @@ echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}  Observability stack is UP${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
-echo -e "  Grafana:         ${CYAN}http://localhost:3000${NC}  (admin/admin)"
+echo -e "  Grafana:         ${CYAN}http://localhost:3000${NC}  (no login required)"
 echo -e "  Prometheus:      ${CYAN}http://localhost:9090${NC}"
 echo -e "  Tempo:           ${CYAN}http://localhost:3200${NC}"
 echo -e "  Loki:            ${CYAN}http://localhost:3100${NC}"
