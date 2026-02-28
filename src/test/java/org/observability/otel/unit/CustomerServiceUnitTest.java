@@ -26,6 +26,7 @@ import org.observability.otel.rest.CustomerPageResponse;
 import org.observability.otel.service.CustomerEventPublisher;
 import org.observability.otel.service.CustomerService;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.dao.TransientDataAccessResourceException;
@@ -145,31 +146,22 @@ class CustomerServiceUnitTest {
   }
 
   @Test
-  @DisplayName("Should throw CustomerConflictException when creating customer with an already-used email")
-  void shouldThrowConflictOnDuplicateEmailDuringCreate() throws Exception {
-    Customer customerWithEmail = CustomerTestDataProvider.createFullCustomer();
+  @DisplayName("Should throw CustomerConflictException when DB trigger rejects duplicate email")
+  void shouldThrowConflictOnDuplicateEmailDuringCreate() {
+    // Email uniqueness is enforced by the DB trigger (V1_5_0).
+    // Simulate the trigger raising a unique_violation via DataIntegrityViolationException.
+    var cause = new RuntimeException(
+        "ERROR: Email test@example.com is already in use by customer 12345");
 
-    // Extract the primary email using JsonNode (Email is package-private, can't call .email() directly)
-    com.fasterxml.jackson.databind.JsonNode emailsNode =
-        objectMapper.valueToTree(customerWithEmail).get("emails");
-    String primaryEmail = java.util.stream.StreamSupport
-        .stream(emailsNode.spliterator(), false)
-        .filter(e -> e.get("primary") != null && e.get("primary").asBoolean())
-        .map(e -> e.get("email").asText())
-        .findFirst()
-        .orElseThrow();
+    when(customerRepository.saveAndFlush(any(CustomerEntity.class)))
+        .thenThrow(new DataIntegrityViolationException("trigger violation", cause));
 
-    CustomerEntity conflicting = CustomerEntity.builder()
-        .id(99999L)
-        .customerJson("{}")
-        .build();
-
-    when(customerRepository.existsById(any())).thenReturn(false);
-    when(customerRepository.findByEmail(primaryEmail)).thenReturn(Optional.of(conflicting));
-
-    assertThatThrownBy(() -> customerService.create(customerWithEmail))
+    assertThatThrownBy(() -> customerService.create(basicCustomer))
         .isInstanceOf(CustomerConflictException.class)
-        .hasMessageContaining("already exists");
+        .hasMessageContaining("is already in use");
+
+    verify(customerRepository).saveAndFlush(any(CustomerEntity.class));
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test
