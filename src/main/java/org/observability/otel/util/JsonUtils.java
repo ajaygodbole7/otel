@@ -309,7 +309,7 @@ public class JsonUtils {
     }
     File file = validateAndGetFile(filePath);
     try {
-      return objectMapper.readValue(new File(filePath), valueType);
+      return objectMapper.readValue(file, valueType);
     } catch (JsonProcessingException e) {
       log.error("Failed to serialize object to JSON for file: {}", file.getAbsolutePath(), e);
       throw e;

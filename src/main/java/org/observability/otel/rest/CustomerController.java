@@ -40,7 +40,7 @@ public class CustomerController implements CustomerAPI {
 
   @Override
   public ResponseEntity<CustomerPageResponse> getCustomers(int limit, Long after) {
-    log.info("Getting customers page: limit={}, after={}", limit, after);
+    log.debug("Getting customers page: limit={}, after={}", limit, after);
     CustomerPageResponse page = customerService.getCustomers(after, limit);
     return ResponseEntity.ok(page);
   }
@@ -53,10 +53,10 @@ public class CustomerController implements CustomerAPI {
    */
   @Override
   public ResponseEntity<Customer> createCustomer(Customer customer) {
-    log.debug("REST request to create Customer: {}", customer);
+    log.debug("REST request to create Customer");
     var result = customerService.create(customer);
     return ResponseEntity
-        .created(URI.create("/api/v1/customers/" + result.id()))
+        .created(URI.create(ApiConstants.ApiPath.BASE_V1_API_PATH + ApiConstants.ApiPath.CUSTOMERS + "/" + result.id()))
         .body(result);
   }
 
@@ -67,7 +67,7 @@ public class CustomerController implements CustomerAPI {
    */
   @Override
   public ResponseEntity<Customer> updateCustomer(Long id, Customer customer) {
-    log.debug("REST request to update Customer: {}", customer);
+    log.debug("REST request to update Customer ID: {}", id);
     return ResponseEntity.ok(customerService.update(id, customer));
   }
 
@@ -89,7 +89,7 @@ public class CustomerController implements CustomerAPI {
    */
   @Override
   public ResponseEntity<Customer> patchCustomer(Long id, String patchJson) {
-    log.info("Patching customer: id={}", id);
+    log.debug("Patching customer: id={}", id);
     Customer updated = customerService.patch(id, patchJson);
     return ResponseEntity.ok(updated);
   }
@@ -99,7 +99,7 @@ public class CustomerController implements CustomerAPI {
    */
   @Override
   public ResponseEntity<Customer> searchCustomer(String email) {
-    log.debug("REST request to search Customer by email={}", email);
+    log.debug("REST request to search Customer by email");
     Customer customer = customerService.findByEmail(email);
     return ResponseEntity.ok(customer);
   }

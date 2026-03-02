@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -103,16 +104,18 @@ class CustomerRepositoryTest {
     var initialUpdatedAt = saved.getUpdatedAt();
 
 
-    // When
+    // When — service layer now sets updatedAt explicitly (no @PreUpdate)
     var updatedCustomer = CustomerTestDataProvider.createUpdateCustomer(
         originalCustomer.id()
         ,originalCustomer.createdAt());
 
+    Instant newUpdatedAt = initialUpdatedAt.plusSeconds(1);
     saved.setCustomerJson(objectMapper.writeValueAsString(updatedCustomer));
+    saved.setUpdatedAt(newUpdatedAt);
     var updated = customerRepository.saveAndFlush(saved);
 
-    // NEW: verify the SQL column updated_at was bumped by @PreUpdate
-    assertThat(updated.getUpdatedAt()).isAfter(initialUpdatedAt);
+    // Verify the SQL column updated_at matches the explicitly set value
+    assertThat(updated.getUpdatedAt()).isEqualTo(newUpdatedAt);
 
     // Then
     customerRepository.findById(saved.getId())

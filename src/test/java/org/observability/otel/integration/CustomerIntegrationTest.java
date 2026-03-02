@@ -397,7 +397,7 @@ class CustomerIntegrationTest {
   }
 
   @Test
-  @DisplayName("Should return 409 Conflict when creating a customer with an existing ID")
+  @DisplayName("Should return 409 Conflict when creating a customer with a duplicate email")
   void shouldReturn409WhenCreatingDuplicateCustomer() {
     // First creation
     Customer basicCustomer = CustomerTestDataProvider.createBasicCustomer();

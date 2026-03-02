@@ -367,13 +367,13 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("Should handle internal server errors")
   void shouldHandleInternalServerErrors() throws Exception {
-    String errorMessage = "unexpected error";
     when(customerService.findById(any(Long.class)))
-        .thenThrow(new CustomerServiceException(errorMessage));
+        .thenThrow(new CustomerServiceException("unexpected error"));
 
     MvcResult result = performRequest(buildGetRequest(1L));
 
-    assertErrorResponse(result, HttpStatus.INTERNAL_SERVER_ERROR, "Internal Error", errorMessage);
+    assertErrorResponse(result, HttpStatus.INTERNAL_SERVER_ERROR, "Internal Error",
+        "An internal error occurred. Please try again later.");
   }
 
   @Test
@@ -598,7 +598,7 @@ class CustomerControllerUnitTest {
   @Test
   @DisplayName("Should return 404 Problem Detail when searching by non-existent email")
   void shouldReturn404WhenSearchingByMissingEmail() throws Exception {
-    String errorMessage = "No customer found with email: missing@test.com";
+    String errorMessage = "No customer found with the provided email";
     when(customerService.findByEmail("missing@test.com"))
         .thenThrow(new CustomerNotFoundException(errorMessage));
 
