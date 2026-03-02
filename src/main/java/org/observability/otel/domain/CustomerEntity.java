@@ -5,7 +5,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
@@ -37,6 +36,7 @@ public class CustomerEntity {
   private String customerJson;
 
   private Instant createdAt;
+  @Setter
   private Instant updatedAt;
 
   @PrePersist
@@ -49,11 +49,6 @@ public class CustomerEntity {
     if (updatedAt == null) {
       updatedAt = createdAt;
     }
-  }
-
-  @PreUpdate
-  void preUpdate() {
-    updatedAt = Instant.now();
   }
 
   @Override

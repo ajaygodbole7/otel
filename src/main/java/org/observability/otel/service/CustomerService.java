@@ -51,14 +51,13 @@ public class CustomerService {
    * @throws CustomerNotFoundException if no customer is found with the given ID
    */
   public Customer findById(Long id) {
-    log.info("Finding customer by ID: {}", id);
+    log.debug("Finding customer by ID: {}", id);
     try {
       Customer customer = customerRepository
           .findById(id)
           .map(this::convertToCustomer)
           .orElseThrow(() -> new CustomerNotFoundException("Customer with ID " + id + " not found."));
-      log.info("Successfully found customer with ID: {}", id);
-      log.debug("Retrieved customer details: {}", customer);
+      log.debug("Successfully found customer with ID: {}", id);
       return customer;
     } catch (CustomerNotFoundException e) {
       throw e;
@@ -79,8 +78,7 @@ public class CustomerService {
    */
   @Transactional
   public Customer create(Customer customer) {
-    log.info("Starting customer creation process");
-    log.debug("Input customer data: {}", customer);
+    log.debug("Starting customer creation process");
     validateNewCustomer(customer);
 
     try {
@@ -89,7 +87,7 @@ public class CustomerService {
       Instant now = Instant.now();
 
       Customer customerToSave = buildForPersistence(customer, customerId, now, now);
-      log.debug("Prepared customer for saving: {}", customerToSave);
+      log.debug("Prepared customer for saving with ID: {}", customerId);
 
       // H4: Use builder with explicit timestamps so @PrePersist does not overwrite them
       CustomerEntity entity = CustomerEntity.builder()
@@ -99,14 +97,14 @@ public class CustomerService {
           .customerJson(objectMapper.writeValueAsString(customerToSave))
           .build();
 
-      log.info("Saving customer to database");
+      log.debug("Saving customer to database");
       var savedEntity = customerRepository.saveAndFlush(entity);
       var savedCustomer = convertToCustomer(savedEntity);
-      log.info("Successfully saved customer with ID: {}", savedCustomer.id());
+      log.debug("Successfully saved customer with ID: {}", savedCustomer.id());
 
-      log.info("Publishing customer created event");
+      log.debug("Publishing customer created event");
       eventPublisher.publishCustomerCreated(savedCustomer);
-      log.info("Successfully published customer created event");
+      log.debug("Successfully published customer created event");
 
       return savedCustomer;
     } catch (Exception e) {
@@ -127,31 +125,32 @@ public class CustomerService {
    */
   @Transactional
   public Customer update(Long id, Customer inboundCustomer) {
-    log.info("Starting customer update process for ID: {}", id);
-    log.debug("Update request data: {}", inboundCustomer);
+    log.debug("Starting customer update process for ID: {}", id);
     validateExistingCustomer(id, inboundCustomer);
 
     try {
       log.debug("Finding existing customer entity");
       CustomerEntity existingEntity = customerRepository.findById(id)
           .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
-      log.debug("Found existing customer entity: {}", existingEntity);
+      log.debug("Found existing customer entity with ID: {}", existingEntity.getId());
 
       // H4: Read createdAt from JSONB to avoid entity-column vs JSONB timestamp drift
       Customer existing = convertToCustomer(existingEntity);
+      Instant now = Instant.now();
       Customer customerToUpdate = buildForPersistence(
-          inboundCustomer, existingEntity.getId(), existing.createdAt(), Instant.now());
-      log.debug("Prepared customer update: {}", customerToUpdate);
+          inboundCustomer, existingEntity.getId(), existing.createdAt(), now);
+      log.debug("Prepared customer update for ID: {}", id);
 
       existingEntity.setCustomerJson(objectMapper.writeValueAsString(customerToUpdate));
-      log.info("Saving updated customer to database");
+      existingEntity.setUpdatedAt(now);
+      log.debug("Saving updated customer to database");
       var savedEntity = customerRepository.saveAndFlush(existingEntity);
       var updatedCustomer = convertToCustomer(savedEntity);
-      log.info("Successfully updated customer with ID: {}", updatedCustomer.id());
+      log.debug("Successfully updated customer with ID: {}", updatedCustomer.id());
 
-      log.info("Publishing customer updated event");
+      log.debug("Publishing customer updated event");
       eventPublisher.publishCustomerUpdated(updatedCustomer);
-      log.info("Successfully published customer updated event");
+      log.debug("Successfully published customer updated event");
 
       return updatedCustomer;
     } catch (CustomerNotFoundException e) {
@@ -175,7 +174,7 @@ public class CustomerService {
    */
   @Transactional
   public Customer patch(Long id, String patchJson) {
-    log.info("Starting customer patch process for ID: {}", id);
+    log.debug("Starting customer patch process for ID: {}", id);
 
     // H2: Load entity once directly — avoids the 3 DB calls caused by patch→findById + update→existsById + update→findById
     CustomerEntity existingEntity;
@@ -210,17 +209,19 @@ public class CustomerService {
 
       // Pin both id and createdAt from the existing entity — never trust values from the patch body
       Customer existingCustomer = convertToCustomer(existingEntity);
+      Instant now = Instant.now();
       Customer customerToSave = buildForPersistence(
-          mergedCustomer, existingEntity.getId(), existingCustomer.createdAt(), Instant.now());
+          mergedCustomer, existingEntity.getId(), existingCustomer.createdAt(), now);
 
       existingEntity.setCustomerJson(objectMapper.writeValueAsString(customerToSave));
+      existingEntity.setUpdatedAt(now);
       var savedEntity = customerRepository.saveAndFlush(existingEntity);
       var updatedCustomer = convertToCustomer(savedEntity);
-      log.info("Successfully patched customer with ID: {}", id);
+      log.debug("Successfully patched customer with ID: {}", id);
 
-      log.info("Publishing customer updated event");
+      log.debug("Publishing customer updated event");
       eventPublisher.publishCustomerUpdated(updatedCustomer);
-      log.info("Successfully published customer updated event");
+      log.debug("Successfully published customer updated event");
 
       return updatedCustomer;
     } catch (JsonProcessingException e) {
@@ -243,20 +244,20 @@ public class CustomerService {
    */
   @Transactional
   public void delete(Long id) {
-    log.info("Starting customer deletion process for ID: {}", id);
+    log.debug("Starting customer deletion process for ID: {}", id);
     try {
       // Load entity once — avoids the double SELECT from findById() + deleteById()
       CustomerEntity entity = customerRepository.findById(id)
           .orElseThrow(() -> new CustomerNotFoundException("Customer with ID " + id + " not found."));
       Customer customer = convertToCustomer(entity);
 
-      log.info("Deleting customer from database");
+      log.debug("Deleting customer from database");
       customerRepository.delete(entity);
-      log.info("Successfully deleted customer from database");
+      log.debug("Successfully deleted customer from database");
 
-      log.info("Publishing customer deleted event");
+      log.debug("Publishing customer deleted event");
       eventPublisher.publishCustomerDeleted(customer);
-      log.info("Successfully published customer deleted event");
+      log.debug("Successfully published customer deleted event");
     } catch (CustomerNotFoundException e) {
       throw e;
     } catch (Exception e) {
@@ -273,13 +274,12 @@ public class CustomerService {
    * @throws CustomerNotFoundException if no customer is found with the given email
    */
   public Customer findByEmail(String email) {
-    log.info("Finding customer by email");
+    log.debug("Finding customer by email");
     try {
       Customer customer = customerRepository.findByEmail(email)
           .map(this::convertToCustomer)
-          .orElseThrow(() -> new CustomerNotFoundException("No customer found with email: " + email));
-      log.info("Successfully found customer by email");
-      log.debug("Retrieved customer details: {}", customer);
+          .orElseThrow(() -> new CustomerNotFoundException("No customer found with the provided email"));
+      log.debug("Successfully found customer by email");
       return customer;
     } catch (CustomerNotFoundException e) {
       throw e;
@@ -298,14 +298,14 @@ public class CustomerService {
    * @return CustomerPageResponse containing the page data, nextCursor, hasMore flag, and limit
    */
   public CustomerPageResponse getCustomers(Long afterId, int limit) {
-    log.info("Getting customers page: afterId={}, limit={}", afterId, limit);
+    log.debug("Getting customers page: afterId={}, limit={}", afterId, limit);
     try {
       List<CustomerEntity> entities = customerRepository.findNextPage(afterId, Limit.of(limit + 1));
       boolean hasMore = entities.size() > limit;
       List<CustomerEntity> pageEntities = hasMore ? entities.subList(0, limit) : entities;
       List<Customer> customers = pageEntities.stream().map(this::convertToCustomer).toList();
       Long nextCursor = hasMore ? customers.get(customers.size() - 1).id() : null;
-      log.info("Retrieved {} customers, hasMore={}", customers.size(), hasMore);
+      log.debug("Retrieved {} customers, hasMore={}", customers.size(), hasMore);
       return new CustomerPageResponse(customers, nextCursor, hasMore, limit);
     } catch (Exception e) {
       log.error("Failed to retrieve customers page", e);
@@ -321,7 +321,7 @@ public class CustomerService {
    * @throws CustomerConflictException if a customer with the same ID already exists
    */
   private void validateNewCustomer(Customer customer) {
-    log.debug("Validating new customer: {}", customer);
+    log.debug("Validating new customer");
     if (customer == null) {
       log.error("Customer validation failed: customer is null");
       throw new IllegalArgumentException("Customer must not be null.");
@@ -341,7 +341,7 @@ public class CustomerService {
    */
   // H3: existsById removed — update()'s findById().orElseThrow() handles the not-found case
   private void validateExistingCustomer(Long id, Customer customer) {
-    log.debug("Validating existing customer - ID: {}, Customer: {}", id, customer);
+    log.debug("Validating existing customer with ID: {}", id);
     if (customer == null || customer.id() == null || !id.equals(customer.id())) {
       log.error("Customer validation failed: invalid customer data or ID mismatch");
       throw new IllegalArgumentException("Invalid customer data or ID mismatch.");
@@ -375,12 +375,12 @@ public class CustomerService {
    */
   private Customer convertToCustomer(CustomerEntity entity) {
     try {
-      log.debug("Converting entity to customer: {}", entity);
+      log.debug("Converting entity to customer with ID: {}", entity.getId());
       Customer customer = objectMapper.readValue(entity.getCustomerJson(), Customer.class);
-      log.debug("Successfully converted entity to customer: {}", customer);
+      log.debug("Successfully converted entity to customer with ID: {}", customer.id());
       return customer;
     } catch (JsonProcessingException e) {
-      log.error("Failed to convert entity to customer: {}", entity, e);
+      log.error("Failed to convert entity to customer with ID: {}", entity.getId(), e);
       throw new CustomerServiceException("Error converting JSON to customer", e);
     }
   }

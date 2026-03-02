@@ -27,7 +27,7 @@ import org.observability.otel.service.CustomerEventPublisher;
 import org.observability.otel.service.CustomerService;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.EmptyResultDataAccessException;
+
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.data.domain.Limit;
@@ -197,12 +197,11 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("Should throw CustomerNotFoundException when customer not found")
   void shouldThrowNotFoundExceptionWhenCustomerNotFound() {
-    when(customerRepository.findById(999L))
-        .thenThrow(new EmptyResultDataAccessException("Customer not found", 1));
+    when(customerRepository.findById(999L)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> customerService.findById(999L))
         .isInstanceOf(CustomerNotFoundException.class)
-        .hasMessageContaining("Error retrieving customer");
+        .hasMessageContaining("Customer with ID 999 not found");
 
     verify(customerRepository).findById(999L);
   }
@@ -431,7 +430,7 @@ class CustomerServiceUnitTest {
 
     assertThatThrownBy(() -> customerService.findByEmail("missing@example.com"))
         .isInstanceOf(CustomerNotFoundException.class)
-        .hasMessageContaining("No customer found with email: missing@example.com");
+        .hasMessageContaining("No customer found with the provided email");
 
     verify(customerRepository).findByEmail("missing@example.com");
   }
@@ -503,12 +502,11 @@ class CustomerServiceUnitTest {
   @Test
   @DisplayName("patch() - id not found throws CustomerNotFoundException")
   void shouldThrowNotFoundWhenPatchingNonExistentCustomer() {
-    when(customerRepository.findById(999L))
-        .thenThrow(new EmptyResultDataAccessException("Customer not found", 1));
+    when(customerRepository.findById(999L)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> customerService.patch(999L, "{\"firstName\":\"X\"}"))
         .isInstanceOf(CustomerNotFoundException.class)
-        .hasMessageContaining("Error retrieving customer");
+        .hasMessageContaining("Customer with ID 999 not found");
   }
 
   @Test

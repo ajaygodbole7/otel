@@ -69,13 +69,21 @@ public class ExceptionTranslator {
   @ExceptionHandler(ServiceUnavailableException.class)
   public ResponseEntity<ProblemDetail> handleServiceUnable(
       RuntimeException ex, HttpServletRequest request) {
-    return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", ex, request);
+    log.error("Service unavailable: {}", ex.getMessage(), ex);
+    ProblemDetail problemDetail = createBaseProblemDetail(
+        HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", ex, request);
+    problemDetail.setDetail("Service temporarily unavailable. Please try again later.");
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problemDetail);
   }
 
   @ExceptionHandler(CustomerServiceException.class)
   public ResponseEntity<ProblemDetail> handleServiceGeneric(
       RuntimeException ex, HttpServletRequest request) {
-    return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Error", ex, request);
+    log.error("Customer service error: {}", ex.getMessage(), ex);
+    ProblemDetail problemDetail = createBaseProblemDetail(
+        HttpStatus.INTERNAL_SERVER_ERROR, "Internal Error", ex, request);
+    problemDetail.setDetail("An internal error occurred. Please try again later.");
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
   }
 
   /** GENERIC SPRING EXCEPTIONS */
@@ -264,9 +272,11 @@ public class ExceptionTranslator {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ProblemDetail> handleUnexpectedException(
       Exception ex, HttpServletRequest request) {
-    log.error("Unexpected error occurred", ex);
-    return buildErrorResponse(
+    log.error("Unexpected error occurred: {}", ex.getMessage(), ex);
+    ProblemDetail problemDetail = createBaseProblemDetail(
         HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", ex, request);
+    problemDetail.setDetail("An unexpected error occurred. Please try again later.");
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
   }
 
   private ResponseEntity<ProblemDetail> buildErrorResponse(
