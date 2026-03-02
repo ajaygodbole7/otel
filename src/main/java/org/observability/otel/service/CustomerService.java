@@ -8,6 +8,7 @@ import io.hypersistence.tsid.TSID;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.observability.otel.rest.CustomerPageResponse;
 import org.springframework.data.domain.Limit;
 import lombok.extern.slf4j.Slf4j;
@@ -85,19 +86,7 @@ public class CustomerService {
       log.debug("Generated new customer ID: {}", customerId);
       Instant now = Instant.now();
 
-      Customer customerToSave = Customer.builder()
-          .id(customerId)
-          .type(customer.type())
-          .firstName(customer.firstName())
-          .lastName(customer.lastName())
-          .middleName(customer.middleName())
-          .suffix(customer.suffix())
-          .emails(customer.emails())
-          .phones(customer.phones())
-          .addresses(customer.addresses())
-          .createdAt(now)
-          .updatedAt(now)
-          .build();
+      Customer customerToSave = buildForPersistence(customer, customerId, now, now);
       log.debug("Prepared customer for saving: {}", customerToSave);
 
       // H4: Use builder with explicit timestamps so @PrePersist does not overwrite them
@@ -148,19 +137,8 @@ public class CustomerService {
 
       // H4: Read createdAt from JSONB to avoid entity-column vs JSONB timestamp drift
       Customer existing = convertToCustomer(existingEntity);
-      Customer customerToUpdate = Customer.builder()
-          .id(existingEntity.getId())
-          .type(inboundCustomer.type())
-          .firstName(inboundCustomer.firstName())
-          .lastName(inboundCustomer.lastName())
-          .middleName(inboundCustomer.middleName())
-          .suffix(inboundCustomer.suffix())
-          .emails(inboundCustomer.emails())
-          .phones(inboundCustomer.phones())
-          .addresses(inboundCustomer.addresses())
-          .createdAt(existing.createdAt())
-          .updatedAt(Instant.now())
-          .build();
+      Customer customerToUpdate = buildForPersistence(
+          inboundCustomer, existingEntity.getId(), existing.createdAt(), Instant.now());
       log.debug("Prepared customer update: {}", customerToUpdate);
 
       existingEntity.setCustomerJson(objectMapper.writeValueAsString(customerToUpdate));
@@ -226,19 +204,8 @@ public class CustomerService {
 
       // H4: createdAt comes from JSONB — no entity-column drift
       // Always pin id to the entity's DB id — never trust id from the patch body
-      Customer customerToSave = Customer.builder()
-          .id(existingEntity.getId())
-          .type(mergedCustomer.type())
-          .firstName(mergedCustomer.firstName())
-          .lastName(mergedCustomer.lastName())
-          .middleName(mergedCustomer.middleName())
-          .suffix(mergedCustomer.suffix())
-          .emails(mergedCustomer.emails())
-          .phones(mergedCustomer.phones())
-          .addresses(mergedCustomer.addresses())
-          .createdAt(mergedCustomer.createdAt())
-          .updatedAt(Instant.now())
-          .build();
+      Customer customerToSave = buildForPersistence(
+          mergedCustomer, existingEntity.getId(), mergedCustomer.createdAt(), Instant.now());
 
       existingEntity.setCustomerJson(objectMapper.writeValueAsString(customerToSave));
       var savedEntity = customerRepository.saveAndFlush(existingEntity);
@@ -271,10 +238,14 @@ public class CustomerService {
   @Transactional
   public void delete(Long id) {
     log.info("Starting customer deletion process for ID: {}", id);
-    var customer = findById(id);
     try {
+      // Load entity once — avoids the double SELECT from findById() + deleteById()
+      CustomerEntity entity = customerRepository.findById(id)
+          .orElseThrow(() -> new CustomerNotFoundException("Customer with ID " + id + " not found."));
+      Customer customer = convertToCustomer(entity);
+
       log.info("Deleting customer from database");
-      customerRepository.deleteById(id);
+      customerRepository.delete(entity);
       log.info("Successfully deleted customer from database");
 
       log.info("Publishing customer deleted event");
@@ -345,10 +316,7 @@ public class CustomerService {
       log.error("Customer validation failed: customer is null");
       throw new IllegalArgumentException("Customer must not be null.");
     }
-    if (customer.id() != null && customerRepository.existsById(customer.id())) {
-      log.error("Customer validation failed: customer with ID {} already exists", customer.id());
-      throw new CustomerConflictException("Customer with ID " + customer.id() + " already exists.");
-    }
+    // ID uniqueness: create() always assigns a fresh TSID, so the inbound ID is never persisted.
     // Email uniqueness is enforced by the DB trigger (V1_5_0) — no application-level check needed.
     log.debug("Customer validation successful");
   }
@@ -370,6 +338,22 @@ public class CustomerService {
     }
     // Email uniqueness is enforced by the DB trigger (V1_5_0) — no application-level check needed.
     log.debug("Customer validation successful");
+  }
+
+  private Customer buildForPersistence(Customer source, Long id, Instant createdAt, Instant updatedAt) {
+    return Customer.builder()
+        .id(id)
+        .type(source.type())
+        .firstName(source.firstName())
+        .lastName(source.lastName())
+        .middleName(source.middleName())
+        .suffix(source.suffix())
+        .emails(source.emails())
+        .phones(source.phones())
+        .addresses(source.addresses())
+        .createdAt(createdAt)
+        .updatedAt(updatedAt)
+        .build();
   }
 
   /**
@@ -420,8 +404,8 @@ public class CustomerService {
         // The email uniqueness trigger (V1_5_0) raises messages like
         // "Email foo@bar.com is already in use by customer 123".
         // Surface that to the caller when available; fall back to a generic message.
-        String rootMsg = java.util.Optional.ofNullable(ex.getRootCause())
-            .map(Throwable::getMessage).orElse("");
+        Throwable root = ExceptionUtils.getRootCause(ex);
+        String rootMsg = root != null ? root.getMessage() : "";
         String detail = rootMsg.contains("is already in use")
             ? rootMsg : contextMessage + " Possible constraint violation.";
         log.warn("Data integrity violation: {}", detail);
