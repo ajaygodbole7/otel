@@ -32,7 +32,7 @@ for arg in "$@"; do
 done
 
 # ── Container runtime detection ───────────────────────────────────────────────
-if docker info &>/dev/null 2>&1; then
+if docker info &>/dev/null; then
   COMPOSE_CMD="docker compose"
 elif PODMAN_SOCK=$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null) \
      && [ -S "$PODMAN_SOCK" ]; then
