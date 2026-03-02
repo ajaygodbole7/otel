@@ -21,6 +21,12 @@
 # =============================================================================
 set -euo pipefail
 
+# python3 is required for JSON field extraction
+if ! command -v python3 &>/dev/null; then
+  echo "ERROR: python3 is required but not found. Install it and retry." >&2
+  exit 1
+fi
+
 BASE_URL="${BASE_URL:-http://localhost:8080/api/v1/customers}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'

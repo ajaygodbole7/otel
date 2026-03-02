@@ -17,7 +17,7 @@ die()     { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
 # ── Container runtime detection ───────────────────────────────────────────────
 detect_runtime() {
-  if docker info &>/dev/null 2>&1; then
+  if docker info &>/dev/null; then
     info "Container runtime: Docker"
     unset DOCKER_HOST TESTCONTAINERS_RYUK_DISABLED
     COMPOSE_CMD="docker compose"
@@ -45,6 +45,24 @@ wait_for_http() {
   echo ""; success "$name is ready"
 }
 
+# ── Wait for a container's healthcheck to report "healthy" ────────────────────
+wait_for_healthy() {
+  local name="$1" container_name="$2" max_secs="${3:-60}"
+  local elapsed=0 runtime_cmd
+  # Use the underlying runtime (not compose) for inspect
+  runtime_cmd="${COMPOSE_CMD%% *}"   # "docker" or "podman"
+  printf "  Waiting for %s " "$name"
+  while true; do
+    local status
+    status=$($runtime_cmd inspect --format '{{.State.Health.Status}}' "$container_name" 2>/dev/null || echo "")
+    [ "$status" = "healthy" ] && break
+    sleep 2; elapsed=$((elapsed+2))
+    printf "."
+    if [ $elapsed -ge $max_secs ]; then echo ""; die "$name did not become healthy in ${max_secs}s"; fi
+  done
+  echo ""; success "$name is healthy"
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 detect_runtime
 
@@ -53,7 +71,8 @@ $COMPOSE_CMD -f "$COMPOSE_FILE" up -d
 
 echo ""
 info "Waiting for services to become healthy..."
-wait_for_http "Prometheus"                    "http://localhost:9090/-/ready"   60
+wait_for_healthy "PostgreSQL"                   "postgres_demo"  60
+wait_for_healthy "Kafka"                        "kafka_demo"     90
 wait_for_http "Prometheus"                    "http://localhost:9090/-/ready"   60
 wait_for_http "Grafana"                       "http://localhost:3000/api/health" 60
 wait_for_http "OTel Collector (zPages)"       "http://localhost:55679/debug/tracez" 30
@@ -63,7 +82,7 @@ info "Waiting for Tempo ingester..."
 local_elapsed=0
 until curl -sf http://localhost:3200/ready -o /dev/null 2>/dev/null; do
   sleep 3; local_elapsed=$((local_elapsed+3))
-  [ $local_elapsed -ge 60 ] && warn "Tempo not yet ready after 60s — continuing anyway"; break
+  if [ $local_elapsed -ge 60 ]; then warn "Tempo not yet ready after 60s — continuing anyway"; break; fi
 done
 success "Tempo ready (or timed out gracefully)"
 

@@ -14,6 +14,12 @@
 # =============================================================================
 set -euo pipefail
 
+# python3 is required for JSON field extraction
+if ! command -v python3 &>/dev/null; then
+  echo "ERROR: python3 is required but not found. Install it and retry." >&2
+  exit 1
+fi
+
 BASE_URL="${BASE_URL:-http://localhost:8080/api/v1/customers}"
 ROUNDS="${ROUNDS:-5}"          # how many full cycles to run
 PAUSE="${PAUSE:-0.3}"          # seconds between requests (keeps rate visible in Grafana)
@@ -23,6 +29,9 @@ info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
 ok()      { echo -e "${GREEN}[${1}]${NC} ${2}"; }
 err()     { echo -e "${RED}[${1}]${NC} ${2}"; }
 section() { echo -e "\n${BOLD}${YELLOW}── $* ──${NC}"; }
+
+RESP_TMP=$(mktemp)
+trap "rm -f $RESP_TMP" EXIT
 
 check_app() {
   if ! curl -sf "$BASE_URL/../actuator/health" -o /dev/null 2>/dev/null && \
@@ -36,7 +45,7 @@ check_app() {
 http() {
   # http <method> <url> [body] [content-type]
   local method="$1" url="$2" body="${3:-}" ctype="${4:-application/json}"
-  local args=(-s -o /tmp/http_resp -w "%{http_code}" -X "$method" "$url")
+  local args=(-s -o $RESP_TMP -w "%{http_code}" -X "$method" "$url")
   [ -n "$body" ] && args+=(-H "Content-Type: $ctype" -d "$body")
   local code
   code=$(curl "${args[@]}" 2>/dev/null)
@@ -44,8 +53,8 @@ http() {
 }
 
 json_field() {
-  # Extract a top-level JSON field from /tmp/http_resp using python3
-  python3 -c "import sys,json; print(json.load(open('/tmp/http_resp')).get('$1',''))" 2>/dev/null || echo ""
+  # Extract a top-level JSON field from $RESP_TMP using python3
+  python3 -c "import sys,json; print(json.load(open('$RESP_TMP')).get('$1',''))" 2>/dev/null || echo ""
 }
 
 TOTAL_OK=0; TOTAL_ERR=0
@@ -146,7 +155,7 @@ for round in $(seq 1 "$ROUNDS"); do
       # Build a full replace body preserving phones/addresses from the created record
       PUT_BODY=$(python3 -c "
 import sys, json
-d = json.load(open('/tmp/http_resp'))
+d = json.load(open('$RESP_TMP'))
 d['firstName'] = 'Updated${round}'
 d['lastName']  = 'LoadTest'
 # keep id and createdAt — required by PUT; remove only updatedAt

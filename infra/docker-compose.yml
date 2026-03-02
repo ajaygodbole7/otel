@@ -58,8 +58,8 @@ services:
       # Optional override for Kafka logs directory if you want
       # KAFKA_LOG_DIRS: "/var/lib/kafka/data"
 
-      # Single node => no cluster ID needed for ephemeral usage.
-      # If you need a stable cluster ID, set KAFKA_CLUSTER_ID
+      # CLUSTER_ID above is required by KRaft mode — set to a fixed value
+      # for deterministic restarts with the same data volumes.
     ports:
       - "9092:9092"  # host -> Kafka client
     volumes:
@@ -126,8 +126,6 @@ services:
       - tempo_data:/tmp/tempo
     ports:
       - "3200:3200"
-    environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3200/ready"]
       interval: 10s
@@ -143,7 +141,7 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./loki.yaml:/etc/loki/local-config.yaml
-      - loki_data:/loki
+      - loki_data:/tmp/loki
     ports:
       - "3100:3100"
     healthcheck:
