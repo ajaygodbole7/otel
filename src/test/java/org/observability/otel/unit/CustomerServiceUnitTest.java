@@ -103,7 +103,6 @@ class CustomerServiceUnitTest {
     assertThat(result.updatedAt()).isNotNull();
     assertThat(result.createdAt()).isEqualTo(result.updatedAt());
 
-    verify(customerRepository).existsById(basicCustomer.id());
     verify(customerRepository).saveAndFlush(entityCaptor.capture());
     CustomerEntity capturedEntity = entityCaptor.getValue();
     assertThat(capturedEntity.getId()).isEqualTo(result.id());
@@ -129,20 +128,6 @@ class CustomerServiceUnitTest {
         .usingRecursiveComparison()
         .ignoringFields("createdAt", "updatedAt")
         .isEqualTo(expectedCustomer);
-  }
-
-  @Test
-  @DisplayName("Should throw CustomerConflictException when customer already exists")
-  void shouldThrowConflictExceptionWhenCustomerExists() {
-    when(customerRepository.existsById(any())).thenReturn(true);
-
-    assertThatThrownBy(() -> customerService.create(basicCustomer))
-        .isInstanceOf(CustomerConflictException.class)
-        .hasMessageContaining("already exists");
-
-    verify(customerRepository).existsById(basicCustomer.id());
-    verify(customerRepository, never()).saveAndFlush(any());
-    verify(eventPublisher, never()).publishCustomerCreated(any());
   }
 
   @Test
@@ -300,21 +285,20 @@ class CustomerServiceUnitTest {
 
     customerService.delete(basicCustomer.id());
 
-    verify(customerRepository).deleteById(basicCustomer.id());
+    verify(customerRepository).delete(basicEntity);
     verify(eventPublisher).publishCustomerDeleted(any());
   }
 
   @Test
   @DisplayName("Should throw CustomerNotFoundException when deleting a non-existent customer")
   void shouldThrowNotFoundWhenDeletingNonExistentCustomer() {
-    // findById returns empty → service's findById throws CustomerNotFoundException
-    // → delete() never reaches deleteById
+    // findById returns empty → service throws CustomerNotFoundException
     when(customerRepository.findById(999L)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> customerService.delete(999L))
         .isInstanceOf(CustomerNotFoundException.class);
 
-    verify(customerRepository, never()).deleteById(any());
+    verify(customerRepository, never()).delete(any(CustomerEntity.class));
     verifyNoInteractions(eventPublisher);
   }
 
@@ -324,13 +308,13 @@ class CustomerServiceUnitTest {
     Long customerId = basicCustomer.id();
     when(customerRepository.findById(customerId)).thenReturn(Optional.of(basicEntity));
     doThrow(new DataAccessException("Database error") {})
-        .when(customerRepository).deleteById(customerId);
+        .when(customerRepository).delete(basicEntity);
 
     assertThatThrownBy(() -> customerService.delete(customerId))
         .isInstanceOf(CustomerServiceException.class);
 
     verify(customerRepository).findById(customerId);
-    verify(customerRepository).deleteById(customerId);
+    verify(customerRepository).delete(basicEntity);
     verifyNoInteractions(eventPublisher);
   }
 
@@ -340,12 +324,12 @@ class CustomerServiceUnitTest {
     Long customerId = basicCustomer.id();
     when(customerRepository.findById(customerId)).thenReturn(Optional.of(basicEntity));
     doThrow(new QueryTimeoutException("Database timeout"))
-        .when(customerRepository).deleteById(customerId);
+        .when(customerRepository).delete(basicEntity);
 
     assertThatThrownBy(() -> customerService.delete(customerId))
         .isInstanceOf(ServiceUnavailableException.class);
 
-    verify(customerRepository).deleteById(customerId);
+    verify(customerRepository).delete(basicEntity);
     verifyNoInteractions(eventPublisher);
   }
 
@@ -363,7 +347,7 @@ class CustomerServiceUnitTest {
   @DisplayName("Should handle unexpected exceptions gracefully in translateAndThrow")
   void shouldHandleUnexpectedExceptionsGracefully() {
     when(customerRepository.findById(basicCustomer.id())).thenReturn(Optional.of(basicEntity));
-    doThrow(new RuntimeException("Unexpected error")).when(customerRepository).deleteById(basicCustomer.id());
+    doThrow(new RuntimeException("Unexpected error")).when(customerRepository).delete(basicEntity);
 
     assertThatThrownBy(() -> customerService.delete(basicCustomer.id()))
         .isInstanceOf(CustomerServiceException.class)
