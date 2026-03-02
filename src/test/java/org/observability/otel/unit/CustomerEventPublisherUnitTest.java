@@ -205,8 +205,12 @@ class CustomerEventPublisherUnitTest {
     eventPublisher.publishCustomerCreated(basicCustomer);
 
     // Then
+    ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<CloudEvent> eventCaptor = ArgumentCaptor.forClass(CloudEvent.class);
-    verify(kafkaTemplate).send(eq(TOPIC), anyString(), eventCaptor.capture());
+    verify(kafkaTemplate).send(eq(TOPIC), keyCaptor.capture(), eventCaptor.capture());
+
+    // Kafka key must be the customer ID for per-customer partition ordering
+    assertThat(keyCaptor.getValue()).isEqualTo(basicCustomer.id().toString());
 
     CloudEvent capturedEvent = eventCaptor.getValue();
     assertThat(capturedEvent.getSpecVersion().toString()).isEqualTo("1.0");

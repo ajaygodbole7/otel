@@ -65,7 +65,7 @@ public class CustomerEventPublisher {
           .withData(JsonCloudEventData.wrap(customerJsonNode))
           .build();
 
-      var result = kafkaTemplate.send(TOPIC, cloudEvent.getId(), cloudEvent)
+      var result = kafkaTemplate.send(TOPIC, customer.id().toString(), cloudEvent)
           .get(5, TimeUnit.SECONDS);
       log.info("Published {} event for customer {} to partition {} offset {}",
                eventType, customer.id(),
