@@ -603,7 +603,7 @@
       <div class="section-body">
         <div class="stack-list">
           <div class="stack-item"><span class="si-name">Spring Boot 3.5.11 — Web, Data JPA, Kafka, Validation, Actuator</span><span class="si-role">Core framework</span></div>
-          <div class="stack-item"><span class="si-name">PostgreSQL 15 + Flyway</span><span class="si-role">Persistence &amp; schema migrations</span></div>
+          <div class="stack-item"><span class="si-name">PostgreSQL 16.2 + Flyway</span><span class="si-role">Persistence &amp; schema migrations</span></div>
           <div class="stack-item"><span class="si-name">Hypersistence TSID</span><span class="si-role">Time-sortable distributed IDs</span></div>
           <div class="stack-item"><span class="si-name">Apache Kafka (KRaft) + CloudEvents 4.0</span><span class="si-role">Event streaming</span></div>
           <div class="stack-item"><span class="si-name">OpenTelemetry Java Agent 2.12 + OTLP exporter</span><span class="si-role">Auto-instrumentation</span></div>
@@ -708,22 +708,21 @@
 <span class="k">public class</span> <span class="cl">CustomerEntity</span> {
 
   <span class="p">@Id</span>
-  <span class="p">@GeneratedValue</span>(generator = <span class="s">"tsid"</span>)
-  <span class="k">private</span> <span class="cl">Long</span> id;
+  <span class="k">private</span> <span class="cl">Long</span> id; <span class="c">// ← set by service, not auto-generated</span>
 
   <span class="p">@Column</span>(columnDefinition = <span class="s">"jsonb"</span>)
-  <span class="k">private</span> <span class="cl">String</span> data; <span class="c">// ← full Customer JSON</span>
+  <span class="k">private</span> <span class="cl">String</span> customerJson; <span class="c">// ← full Customer JSON</span>
 
-  <span class="k">private</span> <span class="cl">LocalDateTime</span> createdAt;
-  <span class="k">private</span> <span class="cl">LocalDateTime</span> updatedAt;
+  <span class="k">private</span> <span class="cl">Instant</span> createdAt;
+  <span class="k">private</span> <span class="cl">Instant</span> updatedAt;
 }
 
 <span class="c">// CustomerService — serialize/deserialize</span>
-entity.<span class="fn">setData</span>(objectMapper
+entity.<span class="fn">setCustomerJson</span>(objectMapper
   .<span class="fn">writeValueAsString</span>(customer));
 
 <span class="cl">Customer</span> c = objectMapper.<span class="fn">readValue</span>(
-  entity.<span class="fn">getData</span>(), <span class="cl">Customer</span>.<span class="k">class</span>);</div>
+  entity.<span class="fn">getCustomerJson</span>(), <span class="cl">Customer</span>.<span class="k">class</span>);</div>
           </div>
         </div>
       </div>
@@ -768,8 +767,8 @@ entity.<span class="fn">setData</span>(objectMapper
           <div class="step">
             <div class="step-circle">4</div>
             <div class="step-body">
-              <strong>Zero config via Hibernate</strong>
-              <p>Integrates with Hibernate via <code>@GeneratedValue(generator = "tsid")</code> — no custom code needed.</p>
+              <strong>Generated in the service layer</strong>
+              <p>The service calls <code>TSID.Factory.getTsid().toLong()</code> and sets the ID on both the entity and the domain record before persisting — explicit and easy to trace.</p>
             </div>
           </div>
         </div>
@@ -885,14 +884,15 @@ entity.<span class="fn">setData</span>(objectMapper
         </div>
         <div class="code"><span class="c">// CustomerEventPublisher — simplified</span>
 <span class="cl">CloudEvent</span> event = <span class="cl">CloudEventBuilder</span>.<span class="fn">v1</span>()
-  .<span class="fn">withId</span>(<span class="cl">UUID</span>.<span class="fn">randomUUID</span>().<span class="fn">toString</span>())
+  .<span class="fn">withId</span>(<span class="cl">String</span>.<span class="fn">valueOf</span>(<span class="cl">TSID</span>.<span class="fn">Factory</span>.<span class="fn">getTsid</span>().<span class="fn">toLong</span>()))
   .<span class="fn">withType</span>(<span class="s">"Customer::created"</span>)
-  .<span class="fn">withSource</span>(<span class="cl">URI</span>.<span class="fn">create</span>(<span class="s">"/customers"</span>))
-  .<span class="fn">withTime</span>(<span class="cl">OffsetDateTime</span>.<span class="fn">now</span>())
+  .<span class="fn">withSource</span>(<span class="cl">URI</span>.<span class="fn">create</span>(<span class="s">"/customer/events"</span>))
+  .<span class="fn">withTime</span>(<span class="cl">OffsetDateTime</span>.<span class="fn">now</span>(<span class="cl">ZoneOffset</span>.UTC))
+  .<span class="fn">withSubject</span>(customer.<span class="fn">id</span>().<span class="fn">toString</span>())
   .<span class="fn">withData</span>(payload)
   .<span class="fn">build</span>();
 
-kafkaTemplate.<span class="fn">send</span>(<span class="s">"customer-events"</span>, event)
+kafkaTemplate.<span class="fn">send</span>(<span class="s">"customer-events"</span>, cloudEvent.<span class="fn">getId</span>(), event)
   .<span class="fn">whenComplete</span>((result, ex) -&gt; {
     <span class="k">if</span> (ex != <span class="k">null</span>) log.<span class="fn">error</span>(<span class="s">"Publish failed"</span>, ex);
     <span class="k">else</span>         log.<span class="fn">info</span>(<span class="s">"Published: {}"</span>, event.<span class="fn">getId</span>());
@@ -920,7 +920,7 @@ kafkaTemplate.<span class="fn">send</span>(<span class="s">"customer-events"</sp
         <div>
           <div class="card" style="margin-bottom:12px;">
             <h3>ExceptionTranslator</h3>
-            <p><code>@RestControllerAdvice</code> that intercepts all exceptions and maps them to structured Problem Details responses. No try/catch in controllers or services.</p>
+            <p><code>@RestControllerAdvice</code> that intercepts all exceptions and maps them to structured Problem Details responses. The service layer's <code>translateAndThrow</code> converts Spring Data exceptions into domain exceptions; the translator maps those to HTTP status codes.</p>
           </div>
 
           <table class="data-table">
@@ -936,7 +936,7 @@ kafkaTemplate.<span class="fn">send</span>(<span class="s">"customer-events"</sp
 
           <div class="alert alert-warn" style="margin-top:12px;">
             <span>🔗</span>
-            <span>Every error response includes <code>traceId</code> and <code>spanId</code>, linking the HTTP error directly to the trace in Tempo.</span>
+            <span><code>traceId</code> and <code>spanId</code> injection into error responses is scaffolded in <code>markSpanError()</code> but currently commented out — deferred to the Spring Boot 4 upgrade, which brings the OTel SDK as a first-class dependency.</span>
           </div>
         </div>
         <div>
@@ -946,20 +946,21 @@ kafkaTemplate.<span class="fn">send</span>(<span class="s">"customer-events"</sp
               <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
             <div class="code">{
-  <span class="s">"type"</span>:     <span class="s">"about:blank"</span>,
-  <span class="s">"title"</span>:    <span class="s">"Not Found"</span>,
-  <span class="s">"status"</span>:   <span class="n">404</span>,
-  <span class="s">"detail"</span>:   <span class="s">"Customer 42 not found"</span>,
-  <span class="s">"instance"</span>: <span class="s">"/api/v1/customers/42"</span>,
-  <span class="s">"traceId"</span>:  <span class="s">"4bf92f3577b34da6..."</span>,
-  <span class="s">"spanId"</span>:   <span class="s">"00f067aa0ba902b7"</span>
+  <span class="s">"type"</span>:      <span class="s">"https://api.example.com/errors/404"</span>,
+  <span class="s">"title"</span>:     <span class="s">"Customer Not Found"</span>,
+  <span class="s">"status"</span>:    <span class="n">404</span>,
+  <span class="s">"detail"</span>:    <span class="s">"Customer with ID 42 not found."</span>,
+  <span class="s">"instance"</span>:  <span class="s">"/api/v1/customers/42"</span>,
+  <span class="s">"errorCode"</span>: <span class="s">"CUSTOMER_NOT_FOUND"</span>,
+  <span class="s">"timestamp"</span>: <span class="s">"2026-02-27T..."</span>
+  <span class="c">// traceId + spanId will be added after SB4 upgrade</span>
 }
 
-<span class="c">// Exception hierarchy</span>
-<span class="cl">CustomerServiceException</span>        <span class="c">// base</span>
- ├── <span class="cl">CustomerNotFoundException</span>   <span class="c">// 404</span>
- ├── <span class="cl">CustomerConflictException</span>   <span class="c">// 409</span>
- └── <span class="cl">ServiceUnavailableException</span> <span class="c">// 503</span></div>
+<span class="c">// Custom exceptions — all extend RuntimeException</span>
+<span class="cl">CustomerNotFoundException</span>    <span class="c">// → 404</span>
+<span class="cl">CustomerConflictException</span>    <span class="c">// → 409</span>
+<span class="cl">ServiceUnavailableException</span>  <span class="c">// → 503</span>
+<span class="cl">CustomerServiceException</span>     <span class="c">// → 500 (catch-all)</span></div>
           </div>
         </div>
       </div>
@@ -1082,30 +1083,30 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
         <div class="section-num blue">10</div>
         <div>
           <h2>Testing Strategy</h2>
-          <div class="section-sub">238 tests across 4 layers — real Kafka pub/sub, real PostgreSQL, strict Mockito conventions</div>
+          <div class="section-sub">4 test layers — real Kafka pub/sub, real PostgreSQL, strict Mockito conventions</div>
         </div>
       </div>
 
       <div class="alert alert-success" style="margin-bottom:16px;">
         <span>✅</span>
-        <span><strong>238 unit &amp; utility tests pass without Docker</strong> in under 3 s. Integration and repository tests add 27 more when Docker is available — spinning up real PostgreSQL and Kafka containers via Testcontainers.</span>
+        <span><strong>Unit &amp; utility tests pass without Docker</strong> in under 3 s. Integration and repository tests run when Docker is available — spinning up real PostgreSQL and Kafka containers via Testcontainers.</span>
       </div>
 
       <div class="card-grid cols-2" style="margin-bottom:16px;">
 
         <div class="card" style="border-top:3px solid #2563eb;">
-          <h3>Unit Tests — 94 tests</h3>
+          <h3>Unit Tests</h3>
           <p>Mock-based, zero I/O. <code>@ExtendWith(MockitoExtension.class)</code> strict mode — unused stubs fail the test. Four classes:</p>
           <ul>
             <li><code>CustomerServiceUnitTest</code> — tests: create, read, update, delete, patch, search by email, and every error path</li>
-            <li><code>CustomerControllerUnitTest</code> — 40 tests: HTTP status, response body, validation rejection, pagination, search via MockMvc</li>
-            <li><code>CustomerEventPublisherUnitTest</code> — 12 tests: CloudEvent field values, JSON serialization, Kafka send failure and timeout paths</li>
-            <li><code>ExceptionTranslatorUnitTest</code> — 12 tests: every RFC 7807 handler mapping, 4xx and 5xx</li>
+            <li><code>CustomerControllerUnitTest</code> — HTTP status, response body, validation rejection, pagination, search via MockMvc</li>
+            <li><code>CustomerEventPublisherUnitTest</code> — CloudEvent field values, JSON serialization, Kafka send failure and timeout paths</li>
+            <li><code>ExceptionTranslatorUnitTest</code> — every RFC 7807 handler mapping, 4xx and 5xx</li>
           </ul>
         </div>
 
         <div class="card" style="border-top:3px solid #7c3aed;">
-          <h3>Integration Tests — 13 tests</h3>
+          <h3>Integration Tests</h3>
           <p><code>@SpringBootTest(RANDOM_PORT)</code> — real HTTP via <code>TestRestTemplate</code>, real PostgreSQL, real Kafka container. Each test verifies three things end-to-end:</p>
           <ul>
             <li><strong>① HTTP response</strong> — status code and body from the running server</li>
@@ -1116,7 +1117,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
         </div>
 
         <div class="card" style="border-top:3px solid #ea580c;">
-          <h3>Repository Tests — 13 tests</h3>
+          <h3>Repository Tests</h3>
           <p><code>@DataJpaTest</code> against a dedicated PostgreSQL container — validates the persistence layer in complete isolation from the service:</p>
           <ul>
             <li>JSONB round-trip: save <code>Customer</code> as JSON, read back, compare with <code>usingRecursiveComparison()</code></li>
@@ -1127,15 +1128,15 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
         </div>
 
         <div class="card" style="border-top:3px solid #16a34a;">
-          <h3>Utility Tests — 144 tests</h3>
+          <h3>Utility Tests</h3>
           <p>Six focused classes, no Spring context or Docker needed. <code>@ParameterizedTest</code> and <code>@NullAndEmptySource</code> cover boundary inputs:</p>
           <ul>
-            <li><code>JsonUtilsIsJsonTest</code> — 59 tests: lenient and strict validation, parameterised valid/invalid inputs, oversized JSON</li>
-            <li><code>JsonUtilsToJsonTest</code> — 23 tests: <code>toJson</code>, <code>toStrictJson</code>, pretty-print, number formats, circular reference</li>
-            <li><code>ValidCurrencyTest</code> — 21 tests: ISO 4217 annotation, case/whitespace tolerance, invalid codes via <code>@ParameterizedTest</code></li>
-            <li><code>JsonUtilsFileTest</code> — 14 tests: read/write files, <code>@TempDir</code>, permission-denied handling</li>
-            <li><code>JsonUtilsExtractValueTest</code> — 18 tests: JSONPath extraction, null path, malformed path</li>
-            <li><code>JsonUtilsFromJsonTest</code> — 9 tests: <code>fromJson</code> to <code>JsonNode</code>, typed class, <code>TypeReference</code></li>
+            <li><code>JsonUtilsIsJsonTest</code> — lenient and strict validation, parameterised valid/invalid inputs, oversized JSON</li>
+            <li><code>JsonUtilsToJsonTest</code> — <code>toJson</code>, <code>toStrictJson</code>, pretty-print, number formats, circular reference</li>
+            <li><code>ValidCurrencyTest</code> — ISO 4217 annotation, case/whitespace tolerance, invalid codes via <code>@ParameterizedTest</code></li>
+            <li><code>JsonUtilsFileTest</code> — read/write files, <code>@TempDir</code>, permission-denied handling</li>
+            <li><code>JsonUtilsExtractValueTest</code> — JSONPath extraction, null path, malformed path</li>
+            <li><code>JsonUtilsFromJsonTest</code> — <code>fromJson</code> to <code>JsonNode</code>, typed class, <code>TypeReference</code></li>
           </ul>
         </div>
 
@@ -1183,7 +1184,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
 
       <!-- Conventions -->
       <div class="card" style="border-top:3px solid #0d9488; margin-bottom:16px;">
-        <h3>Test Conventions — applied consistently across all 13 test files</h3>
+        <h3>Test Conventions — applied consistently across all test files</h3>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px; margin-top:6px;">
           <ul>
             <li><code>@DisplayName</code> on every class and every test method</li>
@@ -1206,7 +1207,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
           <span class="lang-label sh">Shell</span>
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         </div>
-        <div class="code"><span class="c"># Unit + utility tests only — no Docker needed (238 tests)</span>
+        <div class="code"><span class="c"># Unit + utility tests only — no Docker needed</span>
 <span class="cmd">JAVA_HOME</span>=<span class="fn">$(/usr/libexec/java_home -v 21)</span> <span class="cmd">mvn test</span> <span class="flag">-Dtest</span>=<span class="s">"CustomerServiceUnitTest,CustomerControllerUnitTest,CustomerEventPublisherUnitTest,ExceptionTranslatorUnitTest,JsonUtils*,ValidCurrencyTest"</span>
 
 <span class="c"># All tests including Testcontainers (requires Docker)</span>
@@ -1234,7 +1235,7 @@ jsonPathConfig = <span class="cl">Configuration</span>.<span class="fn">builder<
 
       <div class="card-grid cols-3" style="margin-bottom:16px;">
         <div class="card">
-          <h3>PostgreSQL 15</h3>
+          <h3>PostgreSQL 16</h3>
           <p>Customer data stored in a JSONB column. Schema managed by Flyway migrations. <code>V1_1_0</code> adds a <strong>GIN index</strong> on the JSONB column for fast email lookup without full-table scans.</p>
         </div>
         <div class="card">
