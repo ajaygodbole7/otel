@@ -60,6 +60,8 @@ public class CustomerService {
       log.info("Successfully found customer with ID: {}", id);
       log.debug("Retrieved customer details: {}", customer);
       return customer;
+    } catch (CustomerNotFoundException e) {
+      throw e;
     } catch (Exception e) {
       log.error("Error finding customer with ID: {}", id, e);
       return translateAndThrow(e, "Error retrieving customer with ID: " + id);
@@ -152,6 +154,8 @@ public class CustomerService {
       log.info("Successfully published customer updated event");
 
       return updatedCustomer;
+    } catch (CustomerNotFoundException e) {
+      throw e;
     } catch (Exception e) {
       log.error("Failed to update customer with ID: {}", id, e);
       return translateAndThrow(e, "Error updating customer with ID: " + id);
@@ -178,6 +182,8 @@ public class CustomerService {
     try {
       existingEntity = customerRepository.findById(id)
           .orElseThrow(() -> new CustomerNotFoundException("Customer with ID " + id + " not found."));
+    } catch (CustomerNotFoundException e) {
+      throw e;
     } catch (Exception e) {
       log.error("Failed to find customer with ID: {}", id, e);
       return translateAndThrow(e, "Error retrieving customer with ID: " + id);
@@ -202,10 +208,10 @@ public class CustomerService {
       }
       log.debug("Applied patch to customer ID: {}", id);
 
-      // H4: createdAt comes from JSONB — no entity-column drift
-      // Always pin id to the entity's DB id — never trust id from the patch body
+      // Pin both id and createdAt from the existing entity — never trust values from the patch body
+      Customer existingCustomer = convertToCustomer(existingEntity);
       Customer customerToSave = buildForPersistence(
-          mergedCustomer, existingEntity.getId(), mergedCustomer.createdAt(), Instant.now());
+          mergedCustomer, existingEntity.getId(), existingCustomer.createdAt(), Instant.now());
 
       existingEntity.setCustomerJson(objectMapper.writeValueAsString(customerToSave));
       var savedEntity = customerRepository.saveAndFlush(existingEntity);
@@ -251,6 +257,8 @@ public class CustomerService {
       log.info("Publishing customer deleted event");
       eventPublisher.publishCustomerDeleted(customer);
       log.info("Successfully published customer deleted event");
+    } catch (CustomerNotFoundException e) {
+      throw e;
     } catch (Exception e) {
       log.error("Failed to delete customer with ID: {}", id, e);
       translateAndThrow(e, "Error deleting customer with ID: " + id);
@@ -273,6 +281,8 @@ public class CustomerService {
       log.info("Successfully found customer by email");
       log.debug("Retrieved customer details: {}", customer);
       return customer;
+    } catch (CustomerNotFoundException e) {
+      throw e;
     } catch (Exception e) {
       log.error("Error finding customer by email", e);
       return translateAndThrow(e, "Error retrieving customer by email");

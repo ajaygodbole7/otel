@@ -22,7 +22,13 @@ public record Customer(
     @Valid @NotEmpty List<Phone> phones,
     Instant createdAt,
     Instant updatedAt
-) {}
+) {
+    public Customer {
+        addresses = addresses == null ? null : List.copyOf(addresses);
+        emails = emails == null ? null : List.copyOf(emails);
+        phones = phones == null ? null : List.copyOf(phones);
+    }
+}
 
 record Address(
     @NotBlank @Size(max = 50) String type,
