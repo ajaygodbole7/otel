@@ -130,7 +130,7 @@ JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn <goal>
 
 ## Next Planned Work
 
-**Spring Boot 4 + Java 25 upgrade** — OTel span error marking was deferred to this upgrade.
+None — repository is feature-complete as a reference implementation.
 
 ## Merged Features (all on `main`)
 
@@ -141,6 +141,13 @@ JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn <goal>
 | `95e935e` | Keyset pagination — `GET /customers?limit=N&after=<cursor>` |
 | `654a0fa` | PATCH endpoint — `PATCH /customers/{id}` (RFC 7396 JSON Merge Patch) |
 | `7a3653d` | Search endpoint — `GET /customers/search?email=` |
+| `25b6b05` | Full OTel trace pipeline end-to-end (traces, metrics, logs) |
+| `4859d0a` | Grafana dashboards with correct OTel metric names |
+| `b3e4986` | Infra scripts (`start.sh`, `stop.sh`, `e2e-test.sh`, `load-test.sh`) and OTel runbook |
+| `4260a22` | Remove SSN/Document field from Customer domain |
+| `9508b19` | Collapse redundant unit tests across 4 classes |
+| `5d9e93b` | Simplify CustomerService — extract builder, fix delete, remove dead code |
+| `e83c316` | Address infra code review findings (11 fixes) |
 
 ## Important Patterns
 
